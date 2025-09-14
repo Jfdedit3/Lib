@@ -1,7 +1,7 @@
 --[[
 	User Interface Library
 	Made by Late
-	Modified to include internal Blur and Purple Theme
+	Modified to include internal Blur, Purple Theme, and UI Toggle Button
 ]]
 --// Connections
 local GetService = game.GetService
@@ -329,7 +329,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	local Tab = Sidebar:FindFirstChild("Tab");
 	local Options = {};
 	local Examples = {};
-	local Opened = true;
+	local Opened = true; -- État de la fenêtre (ouverte/fermée via Minimize/Maximize)
+	local IsUIVisible = true; -- État de l'UI (visible/invisible via Toggle UI)
 	local Maximized = false;
 	local BlurEnabled = false
 
@@ -342,6 +343,23 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	else
 		Theme = ThemesDefinitions.Dark
 	end
+
+	--// Création du bouton Toggle UI
+	local ToggleUIButton = Instance.new("TextButton")
+	ToggleUIButton.Name = "ToggleUI"
+	ToggleUIButton.Size = UDim2.new(0, 25, 1, -10)
+	ToggleUIButton.Position = UDim2.new(0, 95, 0, 5) -- Ajusté pour être à gauche des autres boutons
+	ToggleUIButton.Text = "👁" -- Symbole pour "oeil" (visible/invisible)
+	ToggleUIButton.Font = Enum.Font.GothamBold
+	ToggleUIButton.TextSize = 14
+	ToggleUIButton.TextColor3 = Theme.Title -- Couleur du texte selon le thème
+	ToggleUIButton.BackgroundTransparency = 0.5
+	ToggleUIButton.BackgroundColor3 = Theme.Component -- Couleur de fond selon le thème
+	ToggleUIButton.BorderSizePixel = 0
+	ToggleUIButton.Parent = Sidebar.Top.Buttons
+
+	-- Ajouter un effet hover au bouton Toggle UI
+	Animations:Component(ToggleUIButton, false) -- false pour indiquer que c'est un bouton standard
 
 	for Index, Example in next, Window:GetDescendants() do
 		if Example.Name:find("Example") and not Examples[Example.Name] then
@@ -363,32 +381,62 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		Setup.Keybind = Settings.MinimizeKeybind
 	end
 	--// Animate
-	local Close = function()
-		if Opened then
+	local function ToggleUIVisibility()
+		IsUIVisible = not IsUIVisible
+		if IsUIVisible then
+			-- Rendre l'UI visible
+			Window.Visible = true
+			Animations:Open(Window, Setup.Transparency)
 			if BlurEnabled then
-				-- Cacher le flou interne
+				local blurFrame = InternalBlurs[Settings.Title]
+				if blurFrame then
+					blurFrame.Visible = Opened -- Visible seulement si la fenêtre est "ouverte"
+				end
+			end
+		else
+			-- Cacher l'UI
+			Animations:Close(Window)
+			if BlurEnabled then
 				local blurFrame = InternalBlurs[Settings.Title]
 				if blurFrame then
 					blurFrame.Visible = false
 				end
 			end
+			-- Attendre la fin de l'animation pour cacher complètement
+			task.delay(0.3, function()
+				if not IsUIVisible then -- Vérifier à nouveau, au cas où elle a été réactivée
+					Window.Visible = false
+				end
+			end)
+		end
+	end
+
+	local Close = function()
+		if Opened then
+			-- Fermer la fenêtre (minimiser)
 			Opened = false
-			Animations:Close(Window)
-			Window.Visible = false
-		else
-			Animations:Open(Window, Setup.Transparency)
-			Opened = true
 			if BlurEnabled then
-				-- Afficher le flou interne
 				local blurFrame = InternalBlurs[Settings.Title]
 				if blurFrame then
+					blurFrame.Visible = false
+				end
+			end
+			Animations:Close(Window)
+			-- Ne pas cacher Window.Visible ici, car l'UI elle-même est toujours "visible"
+		else
+			-- Ouvrir la fenêtre (maximiser/restaurer)
+			Opened = true
+			Animations:Open(Window, Setup.Transparency)
+			if BlurEnabled then
+				local blurFrame = InternalBlurs[Settings.Title]
+				if blurFrame and IsUIVisible then -- Ne montrer le flou que si l'UI est visible
 					blurFrame.Visible = true
 				end
 			end
 		end
 	end
 	for Index, Button in next, Sidebar.Top.Buttons:GetChildren() do
-		if Button:IsA("TextButton") then
+		if Button:IsA("TextButton") and Button ~= ToggleUIButton then -- Exclure le ToggleUIButton de cette boucle
 			local Name = Button.Name
 			Animations:Component(Button, true)
 			Connect(Button.MouseButton1Click, function()
@@ -404,9 +452,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 					end
 				elseif Name == "Minimize" then
 					Opened = false
-					Window.Visible = false
+					-- Window.Visible = false -- Supprimé, géré par ToggleUI
 					if BlurEnabled then
-						-- Cacher le flou interne
 						local blurFrame = InternalBlurs[Settings.Title]
 						if blurFrame then
 							blurFrame.Visible = false
@@ -416,9 +463,13 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			end)
 		end
 	end
+
+	-- Connecter le bouton Toggle UI
+	Connect(ToggleUIButton.MouseButton1Click, ToggleUIVisibility)
+
 	Services.Input.InputBegan:Connect(function(Input, Focused)
 		if (Input == Setup.Keybind or Input.KeyCode == Setup.Keybind) and not Focused then
-			Close()
+			Close() -- Utilise la logique de fermeture/minimisation existante
 		end
 	end)
 	--// Tab Functions
@@ -859,6 +910,13 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 					Label.BackgroundColor3 = Theme.Outline
 				end
 			end,
+			-- Mise à jour du thème pour le bouton Toggle UI
+			["ToggleUI"] = function(Button) -- Nouvelle entrée pour le bouton Toggle UI
+				if Button:IsA("TextButton") and Button.Name == "ToggleUI" then
+					Button.TextColor3 = Theme.Title
+					Button.BackgroundColor3 = Theme.Component
+				end
+			end,
 		},
 		Classes = {
 			["ImageLabel"] = function(Label)
@@ -924,13 +982,13 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				-- Créer le flou si activé et non existant
 				InternalBlurs[Settings.Title] = CreateInternalBlur(Window)
 				BlurEnabled = true
-				-- Afficher si la fenêtre est ouverte
-				if Opened then
+				-- Afficher si la fenêtre est ouverte ET l'UI est visible
+				if Opened and IsUIVisible then
 					InternalBlurs[Settings.Title].Visible = true
 				end
 			elseif Value and blurFrame then
 				-- Activer le flou existant
-				blurFrame.Visible = Opened -- Visible seulement si la fenêtre est ouverte
+				blurFrame.Visible = Opened and IsUIVisible -- Visible seulement si la fenêtre est ouverte et l'UI visible
 				BlurEnabled = true
 			elseif not Value and blurFrame then
 				-- Désactiver et cacher le flou
@@ -944,6 +1002,10 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		else
 			warn("Tried to change a setting that doesn't exist or isn't available to change.")
 		end
+	end
+	--// Nouvelle fonction pour basculer l'UI
+	function Options:ToggleUI()
+		ToggleUIVisibility()
 	end
 	SetProperty(Window, { Size = Settings.Size, Visible = true, Parent = Screen });
 	Animations:Open(Window, Settings.Transparency or 0)
