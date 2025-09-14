@@ -1,7 +1,7 @@
 --[[
 	User Interface Library
 	Made by Late
-	Modified to include User Avatar
+	Modified to remove external Blur dependency, include internal Blur, User Avatar, and Purple Theme
 ]]
 --// Connections
 local GetService = game.GetService
@@ -17,27 +17,54 @@ end
 local Setup = {
 	Keybind = Enum.KeyCode.LeftControl,
 	Transparency = 0.2,
-	ThemeMode = "Dark",
+	ThemeMode = "Dark", -- Définir sur "Purple" pour utiliser le thème violet
 	Size = nil,
 }
-local Theme = { --// (Dark Theme)
-	--// Frames:
-	Primary = Color3.fromRGB(30, 30, 30),
-	Secondary = Color3.fromRGB(35, 35, 35),
-	Component = Color3.fromRGB(40, 40, 40),
-	Interactables = Color3.fromRGB(45, 45, 45),
-	--// Text:
-	Tab = Color3.fromRGB(200, 200, 200),
-	Title = Color3.fromRGB(240,240,240),
-	Description = Color3.fromRGB(200,200,200),
-	--// Outlines:
-	Shadow = Color3.fromRGB(0, 0, 0),
-	Outline = Color3.fromRGB(40, 40, 40),
-	--// Image:
-	Icon = Color3.fromRGB(220, 220, 220),
+--// Themes
+local ThemesDefinitions = {
+	--// (Dark Theme)
+	Dark = {
+		--// Frames:
+		Primary = Color3.fromRGB(30, 30, 30),
+		Secondary = Color3.fromRGB(35, 35, 35),
+		Component = Color3.fromRGB(40, 40, 40),
+		Interactables = Color3.fromRGB(45, 45, 45),
+		--// Text:
+		Tab = Color3.fromRGB(200, 200, 200),
+		Title = Color3.fromRGB(240,240,240),
+		Description = Color3.fromRGB(200,200,200),
+		--// Outlines:
+		Shadow = Color3.fromRGB(0, 0, 0),
+		Outline = Color3.fromRGB(40, 40, 40),
+		--// Image:
+		Icon = Color3.fromRGB(220, 220, 220),
+	},
+	--// (Purple Theme)
+	Purple = {
+		--// Frames:
+		Primary = Color3.fromRGB(35, 15, 50),       -- Fond principal très foncé violet
+		Secondary = Color3.fromRGB(45, 25, 65),     -- Fond secondaire légèrement plus clair
+		Component = Color3.fromRGB(60, 35, 85),     -- Composants (boutons, etc.)
+		Interactables = Color3.fromRGB(80, 50, 110),-- Éléments interactifs (toggles, sliders)
+		--// Text:
+		Tab = Color3.fromRGB(200, 180, 220),        -- Texte des onglets
+		Title = Color3.fromRGB(230, 210, 255),      -- Titres
+		Description = Color3.fromRGB(210, 190, 240),-- Descriptions
+		--// Outlines:
+		Shadow = Color3.fromRGB(0, 0, 0),
+		Outline = Color3.fromRGB(90, 60, 120),      -- Contours
+		--// Image:
+		Icon = Color3.fromRGB(220, 200, 255),       -- Icônes
+		--// Accents (for active states, etc.)
+		Accent = Color3.fromRGB(180, 120, 255),     -- Couleur d'accentuation (toggle on, etc.)
+	}
 }
+
+--// Initialize Theme based on Setup.ThemeMode
+local Theme = ThemesDefinitions[Setup.ThemeMode] or ThemesDefinitions.Dark
+
 --// Services & Functions
-local Type, Blur = nil
+local Type = nil
 local LocalPlayer = GetService(game, "Players").LocalPlayer;
 local Services = {
 	Insert = GetService(game, "InsertService");
@@ -76,9 +103,18 @@ local Multiply = function(Value, Amount)
 end
 local Color = function(Color, Factor, Mode)
 	Mode = Mode or Setup.ThemeMode
-	if Mode == "Light" then
+	local baseTheme = ThemesDefinitions[Mode] or ThemesDefinitions.Dark
+	if Mode == "Purple" then
+		-- Pour le thème violet, ajuster différemment si nécessaire
+		-- Ici, on assombrit légèrement pour les états "hover"
+		if Factor > 0 then
+			return Color3.fromRGB(math.max(0, (Color.R * 255) - Factor), math.max(0, (Color.G * 255) - Factor * 0.5), math.max(0, (Color.B * 255) - Factor * 0.2))
+		else
+			return Color3.fromRGB(math.min(255, (Color.R * 255) - Factor), math.min(255, (Color.G * 255) - Factor * 0.5), math.min(255, (Color.B * 255) - Factor * 0.2))
+		end
+	elseif Mode == "Light" then
 		return Color3.fromRGB((Color.R * 255) - Factor, (Color.G * 255) - Factor, (Color.B * 255) - Factor)
-	else
+	else -- Dark
 		return Color3.fromRGB((Color.R * 255) + Factor, (Color.G * 255) + Factor, (Color.B * 255) + Factor)
 	end
 end
@@ -168,13 +204,40 @@ Resizeable = function(Tab, Minimum, Maximum)
 		end)
 	end)
 end
+
+--// Internal Blur Function
+local function CreateBlur(ParentWindow)
+	-- Créer un Frame pour simuler le flou
+	local BlurFrame = Instance.new("Frame")
+	BlurFrame.Name = "InternalBlur"
+	BlurFrame.Size = UDim2.new(1, 0, 1, 0)
+	BlurFrame.Position = UDim2.new(0, 0, 0, 0)
+	BlurFrame.BackgroundColor3 = Color3.new(0, 0, 0) -- Noir
+	BlurFrame.BackgroundTransparency = 0.7 -- Transparence pour simuler le flou
+	BlurFrame.BorderSizePixel = 0
+	BlurFrame.ZIndex = 10 -- Assurez-vous qu'il est au-dessus des autres éléments
+	BlurFrame.Visible = false -- Initialement caché
+
+	-- Optionnel: Ajouter un UICorner pour des coins arrondis si le parent en a
+	-- local blurCorner = Instance.new("UICorner")
+	-- blurCorner.CornerRadius = UDim.new(0, 6) -- Ajustez selon le besoin
+	-- blurCorner.Parent = BlurFrame
+
+	-- Parenter le Frame de flou à la fenêtre
+	BlurFrame.Parent = ParentWindow
+
+	-- Retourner le Frame pour pouvoir le contrôler
+	return BlurFrame
+end
+
 --// Setup [UI]
+local Screen
 if (identifyexecutor) then
 	Screen = Services.Insert:LoadLocalAsset("rbxassetid://18490507748");
-	Blur = loadstring(game:HttpGet("https://raw.githubusercontent.com/lxte/lates-lib/main/Assets/Blur.lua"))();
+	-- Blur est maintenant géré en interne
 else
 	Screen = (script.Parent);
-	Blur = require(script.Blur)
+	-- Si utilisé comme module, le flou est aussi géré en interne
 end
 Screen.Main.Visible = false
 xpcall(function()
@@ -184,7 +247,7 @@ end, function()
 end)
 --// Tables for Data
 local Animations = {}
-local Blurs = {}
+local Blurs = {} -- Stockera les instances de Frame de flou
 local Components = (Screen:FindFirstChild("Components"));
 local Library = {};
 local StoredInfo = {
@@ -229,13 +292,17 @@ function Animations:Component(Component: any, Custom: boolean)
 		if Custom then
 			Tween(Component, .25, { Transparency = .85 });
 		else
-			Tween(Component, .25, { BackgroundColor3 = Color(Theme.Component, 5, Setup.ThemeMode) });
+			local currentColor = Component.BackgroundColor3
+			-- Utiliser une couleur légèrement modifiée pour le hover
+			local hoverColor = Color(currentColor, 10, Setup.ThemeMode) -- Ajuster le facteur si nécessaire
+			Tween(Component, .25, { BackgroundColor3 = hoverColor });
 		end
 	end)
 	Connect(Component.InputEnded, function()
 		if Custom then
 			Tween(Component, .25, { Transparency = 1 });
 		else
+			-- Revenir à la couleur du thème
 			Tween(Component, .25, { BackgroundColor3 = Theme.Component });
 		end
 	end)
@@ -252,6 +319,16 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	local Opened = true;
 	local Maximized = false;
 	local BlurEnabled = false
+
+	--// Update Theme if specified in Settings
+	if Settings.Theme and ThemesDefinitions[Settings.Theme] then
+		Setup.ThemeMode = Settings.Theme
+		Theme = ThemesDefinitions[Settings.Theme]
+	elseif Setup.ThemeMode and ThemesDefinitions[Setup.ThemeMode] then
+		Theme = ThemesDefinitions[Setup.ThemeMode]
+	else
+		Theme = ThemesDefinitions.Dark
+	end
 
 	--// Create Avatar ImageLabel
 	local AvatarImageLabel = Instance.new("ImageLabel")
@@ -317,9 +394,10 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	Resizeable(Window, Vector2.new(411, 271), Vector2.new(9e9, 9e9));
 	Setup.Transparency = Settings.Transparency or 0
 	Setup.Size = Settings.Size
-	Setup.ThemeMode = Settings.Theme or "Dark"
+	-- Setup.ThemeMode is set above
 	if Settings.Blurring then
-		Blurs[Settings.Title] = Blur.new(Window, 5)
+		-- Utiliser la fonction interne pour créer le flou
+		Blurs[Settings.Title] = CreateBlur(Window)
 		BlurEnabled = true
 	end
 	if Settings.MinimizeKeybind then
@@ -329,7 +407,11 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	local Close = function()
 		if Opened then
 			if BlurEnabled then
-				Blurs[Settings.Title].root.Parent = nil
+				-- Cacher le flou interne
+				local blurFrame = Blurs[Settings.Title]
+				if blurFrame then
+					blurFrame.Visible = false
+				end
 			end
 			Opened = false
 			Animations:Close(Window)
@@ -338,7 +420,11 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Animations:Open(Window, Setup.Transparency)
 			Opened = true
 			if BlurEnabled then
-				Blurs[Settings.Title].root.Parent = workspace.CurrentCamera
+				-- Afficher le flou interne
+				local blurFrame = Blurs[Settings.Title]
+				if blurFrame then
+					blurFrame.Visible = true
+				end
 			end
 		end
 	end
@@ -360,7 +446,13 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				elseif Name == "Minimize" then
 					Opened = false
 					Window.Visible = false
-					Blurs[Settings.Title].root.Parent = nil
+					if BlurEnabled then
+						-- Cacher le flou interne
+						local blurFrame = Blurs[Settings.Title]
+						if blurFrame then
+							blurFrame.Visible = false
+						end
+					end
 				end
 			end)
 		end
@@ -522,7 +614,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		local Circle = Main["Circle"];
 		local Set = function(Value)
 			if Value then
-				Tween(Main,   .2, { BackgroundColor3 = Color3.fromRGB(153, 155, 255) });
+				-- Utiliser la couleur d'accentuation pour le toggle activé
+				Tween(Main,   .2, { BackgroundColor3 = Theme.Accent or Color3.fromRGB(180, 120, 255) });
 				Tween(Circle, .2, { BackgroundColor3 = Color3.fromRGB(255, 255, 255), Position = UDim2.new(1, -16, 0.5, 0) });
 			else
 				Tween(Main,   .2, { BackgroundColor3 = Theme.Interactables });
@@ -617,15 +710,18 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				Connect(Button.MouseButton1Click, function()
 					local NewValue = not Selected.Value
 					if NewValue then
+						-- Utiliser la couleur d'interactables pour l'élément sélectionné
 						Tween(Button, .25, { BackgroundColor3 = Theme.Interactables });
 						Settings.Callback(Option)
 						Text.Text = Index
 						for _, Others in next, Example:GetChildren() do
 							if Others:IsA("TextButton") and Others ~= Button then
+								-- Réinitialiser les autres éléments
 								Others.BackgroundColor3 = Theme.Component
 							end
 						end
 					else
+						-- Réinitialiser si désélectionné (peut-être pas applicable ici)
 						Tween(Button, .25, { BackgroundColor3 = Theme.Component });
 					end
 					Selected.Value = NewValue
@@ -691,6 +787,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				Active = false
 			end
 		end)
+		-- Utiliser la couleur d'accentuation pour le remplissage du slider
+		Fill.BackgroundColor3 = Theme.Accent or Color3.fromRGB(180, 120, 255)
 		Fill.Size = UDim2.fromScale(Value, 1);
 		Animations:Component(Slider);
 		SetProperty(Title, { Text = Settings.Title });
@@ -715,7 +813,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		Names = {
 			["Paragraph"] = function(Label)
 				if Label:IsA("TextButton") then
-					Label.BackgroundColor3 = Color(Theme.Component, 5, "Dark");
+					Label.BackgroundColor3 = Color(Theme.Component, 5, Setup.ThemeMode);
 				end
 			end,
 			["Title"] = function(Label)
@@ -758,7 +856,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 						local Circle = Label:FindFirstChild("Circle")
 						if not Toggle.Value then
 							Label.BackgroundColor3 = Theme.Interactables
-							Label.Circle.BackgroundColor3 = Theme.Primary
+							if Circle then Circle.BackgroundColor3 = Theme.Primary end
 						end
 					else
 						Label.BackgroundColor3 = Theme.Interactables
@@ -784,6 +882,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 					Label.BackgroundColor3 = Theme.Component
 				elseif Label:IsA("TextBox") and Label.Parent.Name == "Main" then
 					Label.TextColor3 = Theme.Title
+					Label.PlaceholderColor3 = Color3.new(0.7, 0.7, 0.7) -- Placeholder gris
 				end
 			end,
 			["Outline"] = function(Stroke)
@@ -837,7 +936,17 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		},
 	}
 	function Options:SetTheme(Info)
-		Theme = Info or Theme
+		-- Update internal Theme reference
+		if type(Info) == "table" then
+			Theme = Info
+		elseif type(Info) == "string" and ThemesDefinitions[Info] then
+			Setup.ThemeMode = Info
+			Theme = ThemesDefinitions[Info]
+		else
+			Theme = ThemesDefinitions.Dark
+		end
+
+		-- Apply theme colors
 		Window.BackgroundColor3 = Theme.Primary
 		Holder.BackgroundColor3 = Theme.Secondary
 		Window.UIStroke.Color = Theme.Shadow
@@ -864,22 +973,25 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				end
 			end
 		elseif Setting == "Blur" then
-			local AlreadyBlurred, Root = Blurs[Settings.Title], nil
-			if AlreadyBlurred then
-				Root = Blurs[Settings.Title]["root"]
-			end
-			if Value then
+			local blurFrame = Blurs[Settings.Title]
+			if Value and not blurFrame then
+				-- Créer le flou si activé et non existant
+				Blurs[Settings.Title] = CreateBlur(Window)
 				BlurEnabled = true
-				if not AlreadyBlurred or not Root then
-					Blurs[Settings.Title] = Blur.new(Window, 5)
-				elseif Root and not Root.Parent then
-					Root.Parent = workspace.CurrentCamera
+				-- Afficher si la fenêtre est ouverte
+				if Opened then
+					Blurs[Settings.Title].Visible = true
 				end
-			elseif not Value and (AlreadyBlurred and Root and Root.Parent) then
-				Root.Parent = nil
+			elseif Value and blurFrame then
+				-- Activer le flou existant
+				blurFrame.Visible = Opened -- Visible seulement si la fenêtre est ouverte
+				BlurEnabled = true
+			elseif not Value and blurFrame then
+				-- Désactiver et cacher le flou
+				blurFrame.Visible = false
 				BlurEnabled = false
 			end
-		elseif Setting == "Theme" and typeof(Value) == "table" then
+		elseif Setting == "Theme" then -- Accepter une table ou une string
 			Options:SetTheme(Value)
 		elseif Setting == "Keybind" then
 			Setup.Keybind = Value
@@ -889,6 +1001,10 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	end
 	SetProperty(Window, { Size = Settings.Size, Visible = true, Parent = Screen });
 	Animations:Open(Window, Settings.Transparency or 0)
+
+	-- Apply initial theme after window is set up
+	Options:SetTheme(Setup.ThemeMode or Settings.Theme)
+
 	return Options
 end
 return Library
