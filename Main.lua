@@ -1,7 +1,7 @@
 --[[
 	User Interface Library
 	Made by Late
-	Modified to remove external Blur dependency, include internal Blur, User Avatar, and Purple Theme
+	Modified to include internal Blur, User Avatar, and Purple Theme
 ]]
 --// Connections
 local GetService = game.GetService
@@ -66,12 +66,13 @@ local Theme = ThemesDefinitions[Setup.ThemeMode] or ThemesDefinitions.Dark
 --// Services & Functions
 local Type = nil
 local LocalPlayer = GetService(game, "Players").LocalPlayer;
+local PlayersService = GetService(game, "Players"); -- Service correct pour l'avatar
 local Services = {
 	Insert = GetService(game, "InsertService");
 	Tween = GetService(game, "TweenService");
 	Run = GetService(game, "RunService");
 	Input = GetService(game, "UserInputService");
-	Thumbnail = GetService(game, "ThumbnailService"); -- Service pour obtenir l'avatar
+	-- ThumbnailService n'est pas accessible directement via GetService dans un LocalScript
 }
 local Player = {
 	Mouse = LocalPlayer:GetMouse();
@@ -105,8 +106,6 @@ local Color = function(Color, Factor, Mode)
 	Mode = Mode or Setup.ThemeMode
 	local baseTheme = ThemesDefinitions[Mode] or ThemesDefinitions.Dark
 	if Mode == "Purple" then
-		-- Pour le thème violet, ajuster différemment si nécessaire
-		-- Ici, on assombrit légèrement pour les états "hover"
 		if Factor > 0 then
 			return Color3.fromRGB(math.max(0, (Color.R * 255) - Factor), math.max(0, (Color.G * 255) - Factor * 0.5), math.max(0, (Color.B * 255) - Factor * 0.2))
 		else
@@ -207,26 +206,16 @@ end
 
 --// Internal Blur Function
 local function CreateBlur(ParentWindow)
-	-- Créer un Frame pour simuler le flou
 	local BlurFrame = Instance.new("Frame")
 	BlurFrame.Name = "InternalBlur"
 	BlurFrame.Size = UDim2.new(1, 0, 1, 0)
 	BlurFrame.Position = UDim2.new(0, 0, 0, 0)
-	BlurFrame.BackgroundColor3 = Color3.new(0, 0, 0) -- Noir
-	BlurFrame.BackgroundTransparency = 0.7 -- Transparence pour simuler le flou
+	BlurFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+	BlurFrame.BackgroundTransparency = 0.7
 	BlurFrame.BorderSizePixel = 0
-	BlurFrame.ZIndex = 10 -- Assurez-vous qu'il est au-dessus des autres éléments
-	BlurFrame.Visible = false -- Initialement caché
-
-	-- Optionnel: Ajouter un UICorner pour des coins arrondis si le parent en a
-	-- local blurCorner = Instance.new("UICorner")
-	-- blurCorner.CornerRadius = UDim.new(0, 6) -- Ajustez selon le besoin
-	-- blurCorner.Parent = BlurFrame
-
-	-- Parenter le Frame de flou à la fenêtre
+	BlurFrame.ZIndex = 10
+	BlurFrame.Visible = false
 	BlurFrame.Parent = ParentWindow
-
-	-- Retourner le Frame pour pouvoir le contrôler
 	return BlurFrame
 end
 
@@ -234,10 +223,10 @@ end
 local Screen
 if (identifyexecutor) then
 	Screen = Services.Insert:LoadLocalAsset("rbxassetid://18490507748");
-	-- Blur est maintenant géré en interne
+	-- Blur géré en interne
 else
 	Screen = (script.Parent);
-	-- Si utilisé comme module, le flou est aussi géré en interne
+	-- Blur géré en interne
 end
 Screen.Main.Visible = false
 xpcall(function()
@@ -293,8 +282,7 @@ function Animations:Component(Component: any, Custom: boolean)
 			Tween(Component, .25, { Transparency = .85 });
 		else
 			local currentColor = Component.BackgroundColor3
-			-- Utiliser une couleur légèrement modifiée pour le hover
-			local hoverColor = Color(currentColor, 10, Setup.ThemeMode) -- Ajuster le facteur si nécessaire
+			local hoverColor = Color(currentColor, 10, Setup.ThemeMode)
 			Tween(Component, .25, { BackgroundColor3 = hoverColor });
 		end
 	end)
@@ -302,7 +290,6 @@ function Animations:Component(Component: any, Custom: boolean)
 		if Custom then
 			Tween(Component, .25, { Transparency = 1 });
 		else
-			-- Revenir à la couleur du thème
 			Tween(Component, .25, { BackgroundColor3 = Theme.Component });
 		end
 	end)
@@ -330,57 +317,73 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		Theme = ThemesDefinitions.Dark
 	end
 
-	--// Create Avatar ImageLabel
+	--// Create Avatar ImageLabel (Corrected)
+	local AvatarContainer = Instance.new("Frame")
+	AvatarContainer.Name = "UserAvatarContainer"
+	AvatarContainer.Size = UDim2.new(0, 34, 0, 34)
+	AvatarContainer.Position = UDim2.new(1, -42, 0, 8)
+	AvatarContainer.BackgroundTransparency = 1
+	AvatarContainer.Parent = Window
+
+	local AvatarOutline = Instance.new("UIStroke")
+	AvatarOutline.Name = "AvatarOutline"
+	AvatarOutline.Color = Theme.Outline
+	AvatarOutline.Thickness = 1
+	AvatarOutline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	AvatarOutline.Parent = AvatarContainer
+
+	local AvatarBackground = Instance.new("Frame")
+	AvatarBackground.Name = "AvatarBackground"
+	AvatarBackground.Size = UDim2.new(1, 0, 1, 0)
+	AvatarBackground.Position = UDim2.new(0, 0, 0, 0)
+	AvatarBackground.BackgroundColor3 = Theme.Secondary
+	AvatarBackground.BackgroundTransparency = 0.3
+	AvatarBackground.ZIndex = 1
+	AvatarBackground.Parent = AvatarContainer
+
+	local avatarBgCorner = Instance.new("UICorner")
+	avatarBgCorner.CornerRadius = UDim.new(1, 0)
+	avatarBgCorner.Parent = AvatarBackground
+
 	local AvatarImageLabel = Instance.new("ImageLabel")
-	AvatarImageLabel.Name = "UserAvatar"
-	AvatarImageLabel.Size = UDim2.new(0, 30, 0, 30) -- Taille de l'avatar
-	AvatarImageLabel.Position = UDim2.new(1, -40, 0, 10) -- Positionné en haut à droite
-	AvatarImageLabel.BackgroundTransparency = 1 -- Rendre l'arrière-plan transparent
-	AvatarImageLabel.Image = "rbxthumb://type=AvatarHeadShot&id=" .. LocalPlayer.UserId .. "&w=150&h=150" -- URL de base
+	AvatarImageLabel.Name = "AvatarImage"
+	AvatarImageLabel.Size = UDim2.new(1, -4, 1, -4)
+	AvatarImageLabel.Position = UDim2.new(0, 2, 0, 2)
+	AvatarImageLabel.BackgroundTransparency = 1
+	AvatarImageLabel.Image = ""
 	AvatarImageLabel.ScaleType = Enum.ScaleType.Crop
-	AvatarImageLabel.ClipsDescendants = true -- Pour faire un cercle parfait
+	AvatarImageLabel.ClipsDescendants = true
+	AvatarImageLabel.ZIndex = 2
 
-	-- Ajouter un contour
-	local avatarStroke = Instance.new("UIStroke")
-	avatarStroke.Name = "AvatarStroke"
-	avatarStroke.Color = Theme.Outline -- Couleur du contour
-	avatarStroke.Thickness = 1
-	avatarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	avatarStroke.Parent = AvatarImageLabel
+	local avatarImgCorner = Instance.new("UICorner")
+	avatarImgCorner.CornerRadius = UDim.new(1, 0)
+	avatarImgCorner.Parent = AvatarImageLabel
 
-	-- Ajouter un arrière-plan pour le contraste
-	local avatarBackground = Instance.new("Frame")
-	avatarBackground.Name = "AvatarBackground"
-	avatarBackground.Size = UDim2.new(1, 0, 1, 0)
-	avatarBackground.Position = UDim2.new(0, 0, 0, 0)
-	avatarBackground.BackgroundColor3 = Theme.Secondary -- Couleur d'arrière-plan
-	avatarBackground.BackgroundTransparency = 0.5 -- Légère transparence
-	avatarBackground.ZIndex = 0 -- Derrière l'image
-	avatarBackground.Parent = AvatarImageLabel
+	AvatarImageLabel.Parent = AvatarContainer
 
-	-- Ajouter un UICorner pour faire un cercle
-	local avatarCorner = Instance.new("UICorner")
-	avatarCorner.CornerRadius = UDim.new(1, 0) -- Rayon de 100% pour un cercle
-	avatarCorner.Parent = AvatarImageLabel
-
-	avatarCorner:Clone().Parent = avatarBackground -- Appliquer le coin à l'arrière-plan aussi
-
-	AvatarImageLabel.Parent = Window -- Ajouter l'avatar à la fenêtre principale
-
-	--// Tenter de charger l'avatar avec ThumbnailService
+	--// Tenter de charger l'avatar avec Players:GetUserThumbnailAsync (Corrected)
 	task.spawn(function()
-		local success, result = pcall(function()
-			-- Obtenir l'avatar en 150x150
-			return Services.Thumbnail:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+		local success, resultData = pcall(function()
+			return PlayersService:GetUserThumbnailAsync(
+				LocalPlayer.UserId,
+				Enum.ThumbnailType.HeadShot,
+				Enum.ThumbnailSize.Size150x150
+			)
 		end)
 
-		if success and typeof(result) == "string" and result ~= "" then
-			-- Si l'URL est valide, la charger
-			AvatarImageLabel.Image = result
+		if success and type(resultData) == "table" and #resultData >= 2 then
+			local imageUrl = resultData[1]
+			local isReady = resultData[2]
+
+			if type(imageUrl) == "string" and imageUrl ~= "" then
+				AvatarImageLabel.Image = imageUrl
+			else
+				warn("[UI LIB Avatar] GetUserThumbnailAsync returned empty URL.")
+				AvatarImageLabel.Image = "rbxassetid://10730636864"
+			end
 		else
-			-- En cas d'erreur, utiliser l'image par défaut (icône utilisateur)
-			warn("[UI LIB Avatar] Failed to load avatar, using default icon.")
-			AvatarImageLabel.Image = "rbxassetid://10730636864" -- Icône utilisateur par défaut
+			warn("[UI LIB Avatar] Failed to load avatar:", success and "No data returned" or tostring(resultData))
+			AvatarImageLabel.Image = "rbxassetid://10730636864"
 		end
 	end)
 
@@ -394,9 +397,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	Resizeable(Window, Vector2.new(411, 271), Vector2.new(9e9, 9e9));
 	Setup.Transparency = Settings.Transparency or 0
 	Setup.Size = Settings.Size
-	-- Setup.ThemeMode is set above
 	if Settings.Blurring then
-		-- Utiliser la fonction interne pour créer le flou
 		Blurs[Settings.Title] = CreateBlur(Window)
 		BlurEnabled = true
 	end
@@ -407,11 +408,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	local Close = function()
 		if Opened then
 			if BlurEnabled then
-				-- Cacher le flou interne
 				local blurFrame = Blurs[Settings.Title]
-				if blurFrame then
-					blurFrame.Visible = false
-				end
+				if blurFrame then blurFrame.Visible = false end
 			end
 			Opened = false
 			Animations:Close(Window)
@@ -420,11 +418,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Animations:Open(Window, Setup.Transparency)
 			Opened = true
 			if BlurEnabled then
-				-- Afficher le flou interne
 				local blurFrame = Blurs[Settings.Title]
-				if blurFrame then
-					blurFrame.Visible = true
-				end
+				if blurFrame then blurFrame.Visible = true end
 			end
 		end
 	end
@@ -447,11 +442,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 					Opened = false
 					Window.Visible = false
 					if BlurEnabled then
-						-- Cacher le flou interne
 						local blurFrame = Blurs[Settings.Title]
-						if blurFrame then
-							blurFrame.Visible = false
-						end
+						if blurFrame then blurFrame.Visible = false end
 					end
 				end
 			end)
@@ -614,7 +606,6 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		local Circle = Main["Circle"];
 		local Set = function(Value)
 			if Value then
-				-- Utiliser la couleur d'accentuation pour le toggle activé
 				Tween(Main,   .2, { BackgroundColor3 = Theme.Accent or Color3.fromRGB(180, 120, 255) });
 				Tween(Circle, .2, { BackgroundColor3 = Color3.fromRGB(255, 255, 255), Position = UDim2.new(1, -16, 0.5, 0) });
 			else
@@ -710,18 +701,15 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				Connect(Button.MouseButton1Click, function()
 					local NewValue = not Selected.Value
 					if NewValue then
-						-- Utiliser la couleur d'interactables pour l'élément sélectionné
 						Tween(Button, .25, { BackgroundColor3 = Theme.Interactables });
 						Settings.Callback(Option)
 						Text.Text = Index
 						for _, Others in next, Example:GetChildren() do
 							if Others:IsA("TextButton") and Others ~= Button then
-								-- Réinitialiser les autres éléments
 								Others.BackgroundColor3 = Theme.Component
 							end
 						end
 					else
-						-- Réinitialiser si désélectionné (peut-être pas applicable ici)
 						Tween(Button, .25, { BackgroundColor3 = Theme.Component });
 					end
 					Selected.Value = NewValue
@@ -787,7 +775,6 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				Active = false
 			end
 		end)
-		-- Utiliser la couleur d'accentuation pour le remplissage du slider
 		Fill.BackgroundColor3 = Theme.Accent or Color3.fromRGB(180, 120, 255)
 		Fill.Size = UDim2.fromScale(Value, 1);
 		Animations:Component(Slider);
@@ -882,7 +869,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 					Label.BackgroundColor3 = Theme.Component
 				elseif Label:IsA("TextBox") and Label.Parent.Name == "Main" then
 					Label.TextColor3 = Theme.Title
-					Label.PlaceholderColor3 = Color3.new(0.7, 0.7, 0.7) -- Placeholder gris
+					Label.PlaceholderColor3 = Color3.new(0.7, 0.7, 0.7)
 				end
 			end,
 			["Outline"] = function(Stroke)
@@ -898,17 +885,15 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 					Label.BackgroundColor3 = Theme.Outline
 				end
 			end,
-			-- Mise à jour du thème pour l'avatar
-			["UserAvatar"] = function(Label)
-				if Label:IsA("ImageLabel") and Label.Name == "UserAvatar" then
-					-- Mettre à jour le contour de l'avatar
-					local stroke = Label:FindFirstChild("AvatarStroke")
-					if stroke then
-						stroke.Color = Theme.Outline
+			-- Mise à jour du thème pour le conteneur de l'avatar
+			["UserAvatarContainer"] = function(Container)
+				if Container:IsA("Frame") and Container.Name == "UserAvatarContainer" then
+					local outline = Container:FindFirstChild("AvatarOutline")
+					if outline and outline:IsA("UIStroke") then
+						outline.Color = Theme.Outline
 					end
-					-- Mettre à jour l'arrière-plan de l'avatar
-					local bg = Label:FindFirstChild("AvatarBackground")
-					if bg then
+					local bg = Container:FindFirstChild("AvatarBackground")
+					if bg and bg:IsA("Frame") then
 						bg.BackgroundColor3 = Theme.Secondary
 					end
 				end
@@ -936,7 +921,6 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		},
 	}
 	function Options:SetTheme(Info)
-		-- Update internal Theme reference
 		if type(Info) == "table" then
 			Theme = Info
 		elseif type(Info) == "string" and ThemesDefinitions[Info] then
@@ -946,7 +930,6 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Theme = ThemesDefinitions.Dark
 		end
 
-		-- Apply theme colors
 		Window.BackgroundColor3 = Theme.Primary
 		Holder.BackgroundColor3 = Theme.Secondary
 		Window.UIStroke.Color = Theme.Shadow
@@ -960,7 +943,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		end
 	end
 	--// Changing Settings
-	function Options:SetSetting(Setting, Value) --// Available settings - Size, Transparency, Blur, Theme
+	function Options:SetSetting(Setting, Value)
 		if Setting == "Size" then
 			Window.Size = Value
 			Setup.Size = Value
@@ -975,23 +958,17 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		elseif Setting == "Blur" then
 			local blurFrame = Blurs[Settings.Title]
 			if Value and not blurFrame then
-				-- Créer le flou si activé et non existant
 				Blurs[Settings.Title] = CreateBlur(Window)
 				BlurEnabled = true
-				-- Afficher si la fenêtre est ouverte
-				if Opened then
-					Blurs[Settings.Title].Visible = true
-				end
+				if Opened then Blurs[Settings.Title].Visible = true end
 			elseif Value and blurFrame then
-				-- Activer le flou existant
-				blurFrame.Visible = Opened -- Visible seulement si la fenêtre est ouverte
+				blurFrame.Visible = Opened
 				BlurEnabled = true
 			elseif not Value and blurFrame then
-				-- Désactiver et cacher le flou
 				blurFrame.Visible = false
 				BlurEnabled = false
 			end
-		elseif Setting == "Theme" then -- Accepter une table ou une string
+		elseif Setting == "Theme" then
 			Options:SetTheme(Value)
 		elseif Setting == "Keybind" then
 			Setup.Keybind = Value
@@ -1002,7 +979,6 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	SetProperty(Window, { Size = Settings.Size, Visible = true, Parent = Screen });
 	Animations:Open(Window, Settings.Transparency or 0)
 
-	-- Apply initial theme after window is set up
 	Options:SetTheme(Setup.ThemeMode or Settings.Theme)
 
 	return Options
