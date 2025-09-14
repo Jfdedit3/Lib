@@ -3,6 +3,7 @@
 	Made by Late
 	Modified to include external UI Toggle Button
 ]]
+--// Connections
 local GetService = game.GetService
 local Connect = game.Loaded.Connect
 local Wait = game.Loaded.Wait
@@ -12,24 +13,30 @@ if (not game:IsLoaded()) then
 	local Loaded = game.Loaded
 	Loaded.Wait(Loaded);
 end
+--// Important
 local Setup = {
 	Keybind = Enum.KeyCode.LeftControl,
 	Transparency = 0.2,
 	ThemeMode = "Dark",
 	Size = nil,
 }
-local Theme = {
+local Theme = { --// (Dark Theme)
+	--// Frames:
 	Primary = Color3.fromRGB(30, 30, 30),
 	Secondary = Color3.fromRGB(35, 35, 35),
 	Component = Color3.fromRGB(40, 40, 40),
 	Interactables = Color3.fromRGB(45, 45, 45),
+	--// Text:
 	Tab = Color3.fromRGB(200, 200, 200),
 	Title = Color3.fromRGB(240,240,240),
 	Description = Color3.fromRGB(200,200,200),
+	--// Outlines:
 	Shadow = Color3.fromRGB(0, 0, 0),
 	Outline = Color3.fromRGB(40, 40, 40),
+	--// Image:
 	Icon = Color3.fromRGB(220, 220, 220),
 }
+--// Services & Functions
 local Type, Blur = nil
 local LocalPlayer = GetService(game, "Players").LocalPlayer;
 local Services = {
@@ -160,6 +167,7 @@ Resizeable = function(Tab, Minimum, Maximum)
 		end)
 	end)
 end
+--// Setup [UI]
 if (identifyexecutor) then
 	Screen = Services.Insert:LoadLocalAsset("rbxassetid://18490507748");
 	Blur = loadstring(game:HttpGet("https://raw.githubusercontent.com/lxte/lates-lib/main/Assets/Blur.lua"))();
@@ -173,6 +181,7 @@ xpcall(function()
 end, function()
 	Screen.Parent = Player.GUI
 end)
+--// Tables for Data
 local Animations = {}
 local Blurs = {}
 local Components = (Screen:FindFirstChild("Components"));
@@ -181,6 +190,7 @@ local StoredInfo = {
 	["Sections"] = {};
 	["Tabs"] = {}
 };
+--// Animations [Window]
 function Animations:Open(Window: CanvasGroup, Transparency: number, UseCurrentSize: boolean)
 	local Original = (UseCurrentSize and Window.Size) or Setup.Size
 	local Multiplied = Multiply(Original, 1.1)
@@ -229,6 +239,7 @@ function Animations:Component(Component: any, Custom: boolean)
 		end
 	end)
 end
+--// Library [Window]
 function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparency: number, MinimizeKeybind: Enum.KeyCode?, Blurring: boolean, Theme: string })
 	local Window = Clone(Screen:WaitForChild("Main"));
 	local Sidebar = Window:FindFirstChild("Sidebar");
@@ -240,14 +251,18 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	local Opened = true;
 	local Maximized = false;
 	local BlurEnabled = false
-	local IsUIVisible = true
+	local IsUIVisible = true -- État de visibilité de l'UI
+
+	--// Création du bouton Toggle UI Externe
 	local ExternalToggleUI = Instance.new("ScreenGui")
-	ExternalToggleUI.Name = "UI_Library_External_Toggle_" .. tostring(Settings.Title)
+	ExternalToggleUI.Name = "UI_Library_External_Toggle_" .. (Settings.Title or "Window")
 	ExternalToggleUI.ResetOnSpawn = false
+	ExternalToggleUI.DisplayOrder = 1000 -- S'assurer qu'il est au-dessus
+
 	local ExternalToggleButton = Instance.new("TextButton")
 	ExternalToggleButton.Name = "ToggleButton"
 	ExternalToggleButton.Size = UDim2.new(0, 100, 0, 30)
-	ExternalToggleButton.Position = UDim2.new(0, 10, 1, -40)
+	ExternalToggleButton.Position = UDim2.new(0, 10, 1, -40) -- En bas à gauche
 	ExternalToggleButton.AnchorPoint = Vector2.new(0, 1)
 	ExternalToggleButton.Text = "Toggle UI"
 	ExternalToggleButton.Font = Enum.Font.SourceSansBold
@@ -258,12 +273,15 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	ExternalToggleButton.BorderSizePixel = 0
 	ExternalToggleButton.Visible = true
 	ExternalToggleButton.Parent = ExternalToggleUI
+
 	ExternalToggleUI.Parent = game:GetService("Players").LocalPlayer:FindFirstChildOfClass("PlayerGui")
+
 	for Index, Example in next, Window:GetDescendants() do
 		if Example.Name:find("Example") and not Examples[Example.Name] then
 			Examples[Example.Name] = Example
 		end
 	end
+	--// UI Blur & More
 	Drag(Window);
 	Resizeable(Window, Vector2.new(411, 271), Vector2.new(9e9, 9e9));
 	Setup.Transparency = Settings.Transparency or 0
@@ -276,9 +294,11 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	if Settings.MinimizeKeybind then
 		Setup.Keybind = Settings.MinimizeKeybind
 	end
-	local ToggleUIVisibility = function()
+	--// Fonction pour basculer la visibilité de l'UI
+	local function ToggleUIVisibility()
 		IsUIVisible = not IsUIVisible
 		if IsUIVisible then
+			-- Rendre l'UI visible
 			Window.Visible = true
 			Animations:Open(Window, Setup.Transparency)
 			if BlurEnabled then
@@ -288,6 +308,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				end
 			end
 		else
+			-- Cacher l'UI
 			if BlurEnabled then
 				local blurInstance = Blurs[Settings.Title]
 				if blurInstance then
@@ -295,14 +316,19 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				end
 			end
 			Animations:Close(Window)
+			-- Attendre la fin de l'animation pour cacher complètement
 			task.delay(0.3, function()
-				if not IsUIVisible then
+				if not IsUIVisible then -- Vérifier à nouveau, au cas où elle a été réactivée
 					Window.Visible = false
 				end
 			end)
 		end
 	end
+
+	--// Connecter le bouton externe
 	Connect(ExternalToggleButton.MouseButton1Click, ToggleUIVisibility)
+
+	--// Animate
 	local Close = function()
 		if Opened then
 			if BlurEnabled then
@@ -310,7 +336,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			end
 			Opened = false
 			Animations:Close(Window)
-			if IsUIVisible then Window.Visible = false end
+			if IsUIVisible then Window.Visible = false end -- Ne cacher que si l'UI est censée être visible
 		else
 			Animations:Open(Window, Setup.Transparency)
 			Opened = true
@@ -336,7 +362,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 					end
 				elseif Name == "Minimize" then
 					Opened = false
-					if IsUIVisible then Window.Visible = false end
+					if IsUIVisible then Window.Visible = false end -- Ne cacher que si l'UI est censée être visible
 					if BlurEnabled then Blurs[Settings.Title].root.Parent = nil end
 				end
 			end)
@@ -347,6 +373,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Close()
 		end
 	end)
+	--// Tab Functions
 	function Options:SetTab(Name: string)
 		for Index, Button in next, Tab:GetChildren() do
 			if Button:IsA("TextButton") then
@@ -425,6 +452,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		end)
 		return Main.ScrollingFrame
 	end
+	--// Notifications
 	function Options:Notify(Settings: { Title: string, Description: string, Duration: number })
 		local Notification = Clone(Components["Notification"]);
 		local Title, Description = Options:GetLabels(Notification);
@@ -444,6 +472,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Notification:Destroy();
 		end)
 	end
+	--// Component Functions
 	function Options:GetLabels(Component)
 		local Labels = Component:FindFirstChild("Labels")
 		return Labels.Title, Labels.Description
@@ -809,7 +838,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			end
 		end
 	end
-	function Options:SetSetting(Setting, Value)
+	--// Changing Settings
+	function Options:SetSetting(Setting, Value) --// Available settings - Size, Transparency, Blur, Theme
 		if Setting == "Size" then
 			Window.Size = Value
 			Setup.Size = Value
@@ -845,6 +875,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			warn("Tried to change a setting that doesn't exist or isn't available to change.")
 		end
 	end
+	--// Nouvelle fonction pour basculer l'UI depuis le code
 	function Options:ToggleUI()
 		ToggleUIVisibility()
 	end
