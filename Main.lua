@@ -1,7 +1,7 @@
 --[[
 	User Interface Library
 	Made by Late
-	Modified to include a Purple Theme
+	Modified to include User Avatar
 ]]
 --// Connections
 local GetService = game.GetService
@@ -17,52 +17,25 @@ end
 local Setup = {
 	Keybind = Enum.KeyCode.LeftControl,
 	Transparency = 0.2,
-	ThemeMode = "Purple", -- Définir sur "Purple" pour utiliser le thème violet
+	ThemeMode = "Dark",
 	Size = nil,
 }
---// Themes
-local ThemesDefinitions = {
-	--// (Dark Theme)
-	Dark = {
-		--// Frames:
-		Primary = Color3.fromRGB(30, 30, 30),
-		Secondary = Color3.fromRGB(35, 35, 35),
-		Component = Color3.fromRGB(40, 40, 40),
-		Interactables = Color3.fromRGB(45, 45, 45),
-		--// Text:
-		Tab = Color3.fromRGB(200, 200, 200),
-		Title = Color3.fromRGB(240,240,240),
-		Description = Color3.fromRGB(200,200,200),
-		--// Outlines:
-		Shadow = Color3.fromRGB(0, 0, 0),
-		Outline = Color3.fromRGB(40, 40, 40),
-		--// Image:
-		Icon = Color3.fromRGB(220, 220, 220),
-	},
-	--// (Purple Theme)
-	Purple = {
-		--// Frames:
-		Primary = Color3.fromRGB(35, 15, 50),       -- Fond principal très foncé violet
-		Secondary = Color3.fromRGB(45, 25, 65),     -- Fond secondaire légèrement plus clair
-		Component = Color3.fromRGB(60, 35, 85),     -- Composants (boutons, etc.)
-		Interactables = Color3.fromRGB(80, 50, 110),-- Éléments interactifs (toggles, sliders)
-		--// Text:
-		Tab = Color3.fromRGB(200, 180, 220),        -- Texte des onglets
-		Title = Color3.fromRGB(230, 210, 255),      -- Titres
-		Description = Color3.fromRGB(210, 190, 240),-- Descriptions
-		--// Outlines:
-		Shadow = Color3.fromRGB(0, 0, 0),
-		Outline = Color3.fromRGB(90, 60, 120),      -- Contours
-		--// Image:
-		Icon = Color3.fromRGB(220, 200, 255),       -- Icônes
-		--// Accents (for active states, etc.)
-		Accent = Color3.fromRGB(180, 120, 255),     -- Couleur d'accentuation (toggle on, etc.)
-	}
+local Theme = { --// (Dark Theme)
+	--// Frames:
+	Primary = Color3.fromRGB(30, 30, 30),
+	Secondary = Color3.fromRGB(35, 35, 35),
+	Component = Color3.fromRGB(40, 40, 40),
+	Interactables = Color3.fromRGB(45, 45, 45),
+	--// Text:
+	Tab = Color3.fromRGB(200, 200, 200),
+	Title = Color3.fromRGB(240,240,240),
+	Description = Color3.fromRGB(200,200,200),
+	--// Outlines:
+	Shadow = Color3.fromRGB(0, 0, 0),
+	Outline = Color3.fromRGB(40, 40, 40),
+	--// Image:
+	Icon = Color3.fromRGB(220, 220, 220),
 }
-
---// Initialize Theme based on Setup.ThemeMode
-local Theme = ThemesDefinitions[Setup.ThemeMode] or ThemesDefinitions.Dark
-
 --// Services & Functions
 local Type, Blur = nil
 local LocalPlayer = GetService(game, "Players").LocalPlayer;
@@ -71,6 +44,7 @@ local Services = {
 	Tween = GetService(game, "TweenService");
 	Run = GetService(game, "RunService");
 	Input = GetService(game, "UserInputService");
+	Thumbnail = GetService(game, "ThumbnailService"); -- Service pour obtenir l'avatar
 }
 local Player = {
 	Mouse = LocalPlayer:GetMouse();
@@ -102,18 +76,9 @@ local Multiply = function(Value, Amount)
 end
 local Color = function(Color, Factor, Mode)
 	Mode = Mode or Setup.ThemeMode
-	local baseTheme = ThemesDefinitions[Mode] or ThemesDefinitions.Dark
-	if Mode == "Purple" then
-		-- Pour le thème violet, ajuster différemment si nécessaire
-		-- Ici, on assombrit légèrement pour les états "hover"
-		if Factor > 0 then
-			return Color3.fromRGB(math.max(0, (Color.R * 255) - Factor), math.max(0, (Color.G * 255) - Factor * 0.5), math.max(0, (Color.B * 255) - Factor * 0.2))
-		else
-			return Color3.fromRGB(math.min(255, (Color.R * 255) - Factor), math.min(255, (Color.G * 255) - Factor * 0.5), math.min(255, (Color.B * 255) - Factor * 0.2))
-		end
-	elseif Mode == "Light" then
+	if Mode == "Light" then
 		return Color3.fromRGB((Color.R * 255) - Factor, (Color.G * 255) - Factor, (Color.B * 255) - Factor)
-	else -- Dark
+	else
 		return Color3.fromRGB((Color.R * 255) + Factor, (Color.G * 255) + Factor, (Color.B * 255) + Factor)
 	end
 end
@@ -264,17 +229,13 @@ function Animations:Component(Component: any, Custom: boolean)
 		if Custom then
 			Tween(Component, .25, { Transparency = .85 });
 		else
-			local currentColor = Component.BackgroundColor3
-			-- Utiliser une couleur légèrement modifiée pour le hover
-			local hoverColor = Color(currentColor, 10, Setup.ThemeMode) -- Ajuster le facteur si nécessaire
-			Tween(Component, .25, { BackgroundColor3 = hoverColor });
+			Tween(Component, .25, { BackgroundColor3 = Color(Theme.Component, 5, Setup.ThemeMode) });
 		end
 	end)
 	Connect(Component.InputEnded, function()
 		if Custom then
 			Tween(Component, .25, { Transparency = 1 });
 		else
-			-- Revenir à la couleur du thème
 			Tween(Component, .25, { BackgroundColor3 = Theme.Component });
 		end
 	end)
@@ -292,15 +253,59 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	local Maximized = false;
 	local BlurEnabled = false
 
-	--// Update Theme if specified in Settings
-	if Settings.Theme and ThemesDefinitions[Settings.Theme] then
-		Setup.ThemeMode = Settings.Theme
-		Theme = ThemesDefinitions[Settings.Theme]
-	elseif Setup.ThemeMode and ThemesDefinitions[Setup.ThemeMode] then
-		Theme = ThemesDefinitions[Setup.ThemeMode]
-	else
-		Theme = ThemesDefinitions.Dark
-	end
+	--// Create Avatar ImageLabel
+	local AvatarImageLabel = Instance.new("ImageLabel")
+	AvatarImageLabel.Name = "UserAvatar"
+	AvatarImageLabel.Size = UDim2.new(0, 30, 0, 30) -- Taille de l'avatar
+	AvatarImageLabel.Position = UDim2.new(1, -40, 0, 10) -- Positionné en haut à droite
+	AvatarImageLabel.BackgroundTransparency = 1 -- Rendre l'arrière-plan transparent
+	AvatarImageLabel.Image = "rbxthumb://type=AvatarHeadShot&id=" .. LocalPlayer.UserId .. "&w=150&h=150" -- URL de base
+	AvatarImageLabel.ScaleType = Enum.ScaleType.Crop
+	AvatarImageLabel.ClipsDescendants = true -- Pour faire un cercle parfait
+
+	-- Ajouter un contour
+	local avatarStroke = Instance.new("UIStroke")
+	avatarStroke.Name = "AvatarStroke"
+	avatarStroke.Color = Theme.Outline -- Couleur du contour
+	avatarStroke.Thickness = 1
+	avatarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	avatarStroke.Parent = AvatarImageLabel
+
+	-- Ajouter un arrière-plan pour le contraste
+	local avatarBackground = Instance.new("Frame")
+	avatarBackground.Name = "AvatarBackground"
+	avatarBackground.Size = UDim2.new(1, 0, 1, 0)
+	avatarBackground.Position = UDim2.new(0, 0, 0, 0)
+	avatarBackground.BackgroundColor3 = Theme.Secondary -- Couleur d'arrière-plan
+	avatarBackground.BackgroundTransparency = 0.5 -- Légère transparence
+	avatarBackground.ZIndex = 0 -- Derrière l'image
+	avatarBackground.Parent = AvatarImageLabel
+
+	-- Ajouter un UICorner pour faire un cercle
+	local avatarCorner = Instance.new("UICorner")
+	avatarCorner.CornerRadius = UDim.new(1, 0) -- Rayon de 100% pour un cercle
+	avatarCorner.Parent = AvatarImageLabel
+
+	avatarCorner:Clone().Parent = avatarBackground -- Appliquer le coin à l'arrière-plan aussi
+
+	AvatarImageLabel.Parent = Window -- Ajouter l'avatar à la fenêtre principale
+
+	--// Tenter de charger l'avatar avec ThumbnailService
+	task.spawn(function()
+		local success, result = pcall(function()
+			-- Obtenir l'avatar en 150x150
+			return Services.Thumbnail:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+		end)
+
+		if success and typeof(result) == "string" and result ~= "" then
+			-- Si l'URL est valide, la charger
+			AvatarImageLabel.Image = result
+		else
+			-- En cas d'erreur, utiliser l'image par défaut (icône utilisateur)
+			warn("[UI LIB Avatar] Failed to load avatar, using default icon.")
+			AvatarImageLabel.Image = "rbxassetid://10730636864" -- Icône utilisateur par défaut
+		end
+	end)
 
 	for Index, Example in next, Window:GetDescendants() do
 		if Example.Name:find("Example") and not Examples[Example.Name] then
@@ -312,7 +317,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	Resizeable(Window, Vector2.new(411, 271), Vector2.new(9e9, 9e9));
 	Setup.Transparency = Settings.Transparency or 0
 	Setup.Size = Settings.Size
-	-- Setup.ThemeMode is set above
+	Setup.ThemeMode = Settings.Theme or "Dark"
 	if Settings.Blurring then
 		Blurs[Settings.Title] = Blur.new(Window, 5)
 		BlurEnabled = true
@@ -517,8 +522,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		local Circle = Main["Circle"];
 		local Set = function(Value)
 			if Value then
-				-- Utiliser la couleur d'accentuation pour le toggle activé
-				Tween(Main,   .2, { BackgroundColor3 = Theme.Accent or Color3.fromRGB(180, 120, 255) });
+				Tween(Main,   .2, { BackgroundColor3 = Color3.fromRGB(153, 155, 255) });
 				Tween(Circle, .2, { BackgroundColor3 = Color3.fromRGB(255, 255, 255), Position = UDim2.new(1, -16, 0.5, 0) });
 			else
 				Tween(Main,   .2, { BackgroundColor3 = Theme.Interactables });
@@ -613,18 +617,15 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				Connect(Button.MouseButton1Click, function()
 					local NewValue = not Selected.Value
 					if NewValue then
-						-- Utiliser la couleur d'interactables pour l'élément sélectionné
 						Tween(Button, .25, { BackgroundColor3 = Theme.Interactables });
 						Settings.Callback(Option)
 						Text.Text = Index
 						for _, Others in next, Example:GetChildren() do
 							if Others:IsA("TextButton") and Others ~= Button then
-								-- Réinitialiser les autres éléments
 								Others.BackgroundColor3 = Theme.Component
 							end
 						end
 					else
-						-- Réinitialiser si désélectionné (peut-être pas applicable ici)
 						Tween(Button, .25, { BackgroundColor3 = Theme.Component });
 					end
 					Selected.Value = NewValue
@@ -690,8 +691,6 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				Active = false
 			end
 		end)
-		-- Utiliser la couleur d'accentuation pour le remplissage du slider
-		Fill.BackgroundColor3 = Theme.Accent or Color3.fromRGB(180, 120, 255)
 		Fill.Size = UDim2.fromScale(Value, 1);
 		Animations:Component(Slider);
 		SetProperty(Title, { Text = Settings.Title });
@@ -716,7 +715,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		Names = {
 			["Paragraph"] = function(Label)
 				if Label:IsA("TextButton") then
-					Label.BackgroundColor3 = Color(Theme.Component, 5, Setup.ThemeMode);
+					Label.BackgroundColor3 = Color(Theme.Component, 5, "Dark");
 				end
 			end,
 			["Title"] = function(Label)
@@ -759,7 +758,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 						local Circle = Label:FindFirstChild("Circle")
 						if not Toggle.Value then
 							Label.BackgroundColor3 = Theme.Interactables
-							if Circle then Circle.BackgroundColor3 = Theme.Primary end
+							Label.Circle.BackgroundColor3 = Theme.Primary
 						end
 					else
 						Label.BackgroundColor3 = Theme.Interactables
@@ -785,7 +784,6 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 					Label.BackgroundColor3 = Theme.Component
 				elseif Label:IsA("TextBox") and Label.Parent.Name == "Main" then
 					Label.TextColor3 = Theme.Title
-					Label.PlaceholderColor3 = Color3.new(0.7, 0.7, 0.7) -- Placeholder gris
 				end
 			end,
 			["Outline"] = function(Stroke)
@@ -799,6 +797,21 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			["Underline"] = function(Label)
 				if Label:IsA("Frame") then
 					Label.BackgroundColor3 = Theme.Outline
+				end
+			end,
+			-- Mise à jour du thème pour l'avatar
+			["UserAvatar"] = function(Label)
+				if Label:IsA("ImageLabel") and Label.Name == "UserAvatar" then
+					-- Mettre à jour le contour de l'avatar
+					local stroke = Label:FindFirstChild("AvatarStroke")
+					if stroke then
+						stroke.Color = Theme.Outline
+					end
+					-- Mettre à jour l'arrière-plan de l'avatar
+					local bg = Label:FindFirstChild("AvatarBackground")
+					if bg then
+						bg.BackgroundColor3 = Theme.Secondary
+					end
 				end
 			end,
 		},
@@ -824,17 +837,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		},
 	}
 	function Options:SetTheme(Info)
-		-- Update internal Theme reference
-		if type(Info) == "table" then
-			Theme = Info
-		elseif type(Info) == "string" and ThemesDefinitions[Info] then
-			Setup.ThemeMode = Info
-			Theme = ThemesDefinitions[Info]
-		else
-			Theme = ThemesDefinitions.Dark
-		end
-
-		-- Apply theme colors
+		Theme = Info or Theme
 		Window.BackgroundColor3 = Theme.Primary
 		Holder.BackgroundColor3 = Theme.Secondary
 		Window.UIStroke.Color = Theme.Shadow
@@ -876,7 +879,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				Root.Parent = nil
 				BlurEnabled = false
 			end
-		elseif Setting == "Theme" then -- Accepter une table ou une string
+		elseif Setting == "Theme" and typeof(Value) == "table" then
 			Options:SetTheme(Value)
 		elseif Setting == "Keybind" then
 			Setup.Keybind = Value
@@ -886,10 +889,6 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	end
 	SetProperty(Window, { Size = Settings.Size, Visible = true, Parent = Screen });
 	Animations:Open(Window, Settings.Transparency or 0)
-
-	-- Apply initial theme after window is set up
-	Options:SetTheme(Setup.ThemeMode or Settings.Theme)
-
 	return Options
 end
 return Library
