@@ -1,6 +1,6 @@
 --[[
 	User Interface Library
-	Made by Late1
+	Made by Late
 ]]
 --// Connections
 local GetService = game.GetService
@@ -16,28 +16,25 @@ end
 local Setup = {
 	Keybind = Enum.KeyCode.LeftControl,
 	Transparency = 0.2,
-	ThemeMode = "Dark", -- Toujours "Dark" pour le mode de thème
-	Size = nil,
+	ThemeMode = "Dark",
+	Size = nil, -- La taille sera définie dynamiquement dans CreateWindow
 }
-
---// Thème Noir Automatique
-local Theme = { --// (Black Theme - Remplace le thème sombre par défaut)
+local Theme = { --// (Dark Theme)
 	--// Frames:
-	Primary = Color3.fromRGB(10, 10, 10),      -- Fond principal très noir
-	Secondary = Color3.fromRGB(15, 15, 15),    -- Conteneurs secondaires noir foncé
-	Component = Color3.fromRGB(20, 20, 20),    -- Composants interactifs noir foncé
-	Interactables = Color3.fromRGB(25, 25, 25),-- Boutons, curseurs noir foncé
+	Primary = Color3.fromRGB(30, 30, 30),
+	Secondary = Color3.fromRGB(35, 35, 35),
+	Component = Color3.fromRGB(40, 40, 40),
+	Interactables = Color3.fromRGB(45, 45, 45),
 	--// Text:
-	Tab = Color3.fromRGB(220, 220, 220),       -- Gris clair pour les onglets
-	Title = Color3.fromRGB(250, 250, 250),     -- Blanc presque pur pour les titres
-	Description = Color3.fromRGB(180, 180, 180), -- Gris moyen pour les descriptions
+	Tab = Color3.fromRGB(200, 200, 200),
+	Title = Color3.fromRGB(240,240,240),
+	Description = Color3.fromRGB(200,200,200),
 	--// Outlines:
-	Shadow = Color3.fromRGB(0, 0, 0),          -- Ombre noire
-	Outline = Color3.fromRGB(30, 30, 30),      -- Bordure subtile noir foncé
+	Shadow = Color3.fromRGB(0, 0, 0),
+	Outline = Color3.fromRGB(40, 40, 40),
 	--// Image:
-	Icon = Color3.fromRGB(230, 230, 230),      -- Icônes gris clair
+	Icon = Color3.fromRGB(220, 220, 220),
 }
-
 --// Services & Functions
 local Type, Blur = nil
 local LocalPlayer = GetService(game, "Players").LocalPlayer;
@@ -51,6 +48,10 @@ local Player = {
 	Mouse = LocalPlayer:GetMouse();
 	GUI = LocalPlayer.PlayerGui;
 }
+
+-- Détection de l'appareil mobile
+local IsMobile = Services.Input.TouchEnabled -- Vérifie si le toucher est activé
+
 local Tween = function(Object : Instance, Speed : number, Properties : {},  Info : { EasingStyle: Enum?, EasingDirection: Enum? })
 	local Style, Direction
 	if Info then
@@ -80,7 +81,7 @@ local Color = function(Color, Factor, Mode)
 	if Mode == "Light" then
 		return Color3.fromRGB((Color.R * 255) - Factor, (Color.G * 255) - Factor, (Color.B * 255) - Factor)
 	else
-		return Color3.fromRGB((Color.R * 255) + Factor, (Color.G * 255) + Factor, (Color.B * 255) + Factor) -- Pour un thème noir, on ajoute un facteur pour éclaircir légèrement au survol
+		return Color3.fromRGB((Color.R * 255) + Factor, (Color.G * 255) + Factor, (Color.B * 255) + Factor)
 	end
 end
 local Drag = function(Canvas)
@@ -230,8 +231,6 @@ function Animations:Component(Component: any, Custom: boolean)
 		if Custom then
 			Tween(Component, .25, { Transparency = .85 });
 		else
-			-- Lors du survol, on éclaircit légèrement le composant en utilisant la fonction Color
-			-- Cela fonctionne parce que ThemeMode est "Dark", donc Color ajoute un facteur
 			Tween(Component, .25, { BackgroundColor3 = Color(Theme.Component, 5, Setup.ThemeMode) });
 		end
 	end)
@@ -239,7 +238,6 @@ function Animations:Component(Component: any, Custom: boolean)
 		if Custom then
 			Tween(Component, .25, { Transparency = 1 });
 		else
-			-- Retour à la couleur de base noire
 			Tween(Component, .25, { BackgroundColor3 = Theme.Component });
 		end
 	end)
@@ -265,9 +263,19 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	Drag(Window);
 	Resizeable(Window, Vector2.new(411, 271), Vector2.new(9e9, 9e9));
 	Setup.Transparency = Settings.Transparency or 0
-	Setup.Size = Settings.Size
-	-- Setup.ThemeMode est déjà "Dark", donc la fonction Color fonctionnera correctement pour les effets de survol
-	-- Le thème noir est appliqué automatiquement via la variable globale Theme
+
+	-- Définir Setup.Size avec une taille adaptée au mobile si non spécifiée
+	if Settings.Size then
+		Setup.Size = Settings.Size
+	else
+		if IsMobile then
+			Setup.Size = UDim2.new(0, 300, 0, 400) -- Taille réduite pour mobile
+		else
+			Setup.Size = UDim2.new(0, 500, 0, 600) -- Taille par défaut pour PC
+		end
+	end
+
+	Setup.ThemeMode = Settings.Theme or "Dark"
 	if Settings.Blurring then
 		Blurs[Settings.Title] = Blur.new(Window, 5)
 		BlurEnabled = true
@@ -472,11 +480,11 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		local Circle = Main["Circle"];
 		local Set = function(Value)
 			if Value then
-				Tween(Main,   .2, { BackgroundColor3 = Color3.fromRGB(153, 155, 255) }); -- Couleur d'accent (laissez-la comme vous voulez)
+				Tween(Main,   .2, { BackgroundColor3 = Color3.fromRGB(153, 155, 255) });
 				Tween(Circle, .2, { BackgroundColor3 = Color3.fromRGB(255, 255, 255), Position = UDim2.new(1, -16, 0.5, 0) });
 			else
-				Tween(Main,   .2, { BackgroundColor3 = Theme.Interactables }); -- Utilise la couleur noire foncé du thème
-				Tween(Circle, .2, { BackgroundColor3 = Theme.Primary, Position = UDim2.new(0, 3, 0.5, 0) }); -- Utilise la couleur noire du thème
+				Tween(Main,   .2, { BackgroundColor3 = Theme.Interactables });
+				Tween(Circle, .2, { BackgroundColor3 = Theme.Primary, Position = UDim2.new(0, 3, 0.5, 0) });
 			end
 			On.Value = Value
 		end 
@@ -567,18 +575,15 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				Connect(Button.MouseButton1Click, function() 
 					local NewValue = not Selected.Value 
 					if NewValue then
-						-- Utilise la couleur noire foncé pour le bouton sélectionné
 						Tween(Button, .25, { BackgroundColor3 = Theme.Interactables });
 						Settings.Callback(Option)
 						Text.Text = Index
 						for _, Others in next, Example:GetChildren() do
 							if Others:IsA("TextButton") and Others ~= Button then
-								-- Réinitialise les autres boutons à la couleur noire de base
 								Others.BackgroundColor3 = Theme.Component
 							end
 						end
 					else
-						-- Réinitialise le bouton désélectionné à la couleur noire de base
 						Tween(Button, .25, { BackgroundColor3 = Theme.Component });
 					end
 					Selected.Value = NewValue
@@ -664,12 +669,11 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Visible = true,
 		})
 	end
-	--// La fonction SetTheme est conservée pour permettre les changements dynamiques, mais utilise le thème noir par défaut
 	local Themes = {
 		Names = {	
 			["Paragraph"] = function(Label)
 				if Label:IsA("TextButton") then
-					Label.BackgroundColor3 = Color(Theme.Component, 5, "Dark"); -- Applique l'éclaircissement au survol même avec le nouveau thème
+					Label.BackgroundColor3 = Color(Theme.Component, 5, "Dark");
 				end
 			end,
 			["Title"] = function(Label)
@@ -776,7 +780,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		},
 	}
 	function Options:SetTheme(Info)
-		Theme = Info or Theme -- Permet de passer un nouveau thème, sinon reste noir
+		Theme = Info or Theme
 		Window.BackgroundColor3 = Theme.Primary
 		Holder.BackgroundColor3 = Theme.Secondary
 		Window.UIStroke.Color = Theme.Shadow
@@ -789,10 +793,6 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			end
 		end
 	end
-
-	--// Applique le thème noir initial
-	Options:SetTheme(Theme)
-
 	--// Changing Settings
 	function Options:SetSetting(Setting, Value) --// Available settings - Size, Transparency, Blur, Theme
 		if Setting == "Size" then
@@ -830,7 +830,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			warn("Tried to change a setting that doesn't exist or isn't available to change.")
 		end
 	end
-	SetProperty(Window, { Size = Settings.Size, Visible = true, Parent = Screen });
+	-- Utilisation de Setup.Size qui est maintenant défini dynamiquement
+	SetProperty(Window, { Size = Setup.Size, Visible = true, Parent = Screen });
 	Animations:Open(Window, Settings.Transparency or 0)
 	return Options
 end
