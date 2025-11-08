@@ -17,7 +17,7 @@ local Setup = {
 	Keybind = Enum.KeyCode.LeftControl,
 	Transparency = 0.2,
 	ThemeMode = "Dark",
-	Size = nil, -- La taille sera définie dynamiquement dans CreateWindow
+	Size = nil,
 }
 local Theme = { --// (Dark Theme)
 	--// Frames:
@@ -264,14 +264,14 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	Resizeable(Window, Vector2.new(411, 271), Vector2.new(9e9, 9e9));
 	Setup.Transparency = Settings.Transparency or 0
 
-	-- Définir Setup.Size avec une taille adaptée au mobile si non spécifiée
+	-- Définir Setup.Size avec une hauteur réduite pour mobile si non spécifiée
 	if Settings.Size then
 		Setup.Size = Settings.Size
 	else
 		if IsMobile then
-			Setup.Size = UDim2.new(0, 300, 0, 400) -- Taille réduite pour mobile
+			Setup.Size = UDim2.new(0, 500, 0, 300) -- Hauteur réduite pour mobile
 		else
-			Setup.Size = UDim2.new(0, 500, 0, 600) -- Taille par défaut pour PC
+			Setup.Size = UDim2.new(0, 500, 0, 600) -- Hauteur par défaut pour PC
 		end
 	end
 
