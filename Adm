@@ -1,0 +1,405 @@
+--[[
+  DarkAdmin (Framework basé sur le fichier fourni)
+  Admin Script pour Roblox (LocalScript/Injection)
+]]
+
+-- ====================================================================
+-- 1. SETUP & SERVICES
+-- ====================================================================
+
+-- Définition d'une notification simple si la librairie externe n'est pas chargée
+local function simpleNotification(title, text, duration)
+    -- Alternative simple si la librairie n'est pas disponible
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = title,
+        Text = text,
+        Duration = duration,
+    })
+end
+
+local NotificationLibrary = {
+    SendNotification = simpleNotification
+}
+
+repeat task.wait() until game:IsLoaded()
+
+-- Récupération des services
+local Service = setmetatable({}, {
+    __index = function(self, name)
+        local success, cache = pcall(function()
+            -- Utilisation de cloneref pour simuler la méthode souvent utilisée dans ces scripts
+            return game:GetService(name)
+        end)
+        if success then
+            rawset(self, name, cache)
+            return cache
+        else
+            error("Invalid Roblox Service: " .. tostring(name))
+        end
+    end
+})
+
+local TweenService = Service.TweenService
+local UserInputService = Service.UserInputService
+local Players = Service.Players
+local Player = Service.Players.LocalPlayer
+local CoreGui = Service.CoreGui
+local RunService = Service.RunService
+local TextService = Service.TextService
+
+-- Constantes et état
+local COMMAND_PREFIX = "/"
+local IsCommandBarOpen = false
+
+-- ====================================================================
+-- 2. STRUCTURE DU SYSTÈME DE COMMANDES
+-- ====================================================================
+
+local CommandSystem = {
+    commands = {}
+}
+
+function CommandSystem:AddCmd(data)
+    local command = {
+        Title = data.Title or "NoName",
+        Alias = data.Alias or {},
+        HasArgs = data.Args or false,
+        Callback = data.Callback or function() end
+    }
+    table.insert(self.commands, command)
+end
+
+function CommandSystem:GetMatchingCommands(text)
+    local matches = {}
+    if text == "" then
+        -- Afficher toutes les commandes pour 'help' ou 'info'
+        for _, cmd in pairs(self.commands) do
+            table.insert(matches, cmd)
+        end
+        return matches
+    end
+    
+    local lowerText = text:lower()
+    for _, cmd in pairs(self.commands) do
+        -- Vérifier l'alias principal ou le titre
+        for _, alias in pairs(cmd.Alias) do
+            if alias:lower():match("^" .. lowerText) then
+                table.insert(matches, cmd)
+                break
+            end
+        end
+    end
+    return matches
+end
+
+local function splitString(input, delimiter)
+    local result = {}
+    for match in input:gmatch("([^" .. delimiter .. "]+)") do
+        table.insert(result, match)
+    end
+    return result
+end
+
+function CommandSystem:ExecuteCommand(input)
+    local parts = splitString(input, " ")
+    local alias = parts[1]:lower()
+    local args = {}
+    for i = 2, #parts do table.insert(args, parts[i]) end
+
+    for _, cmd in pairs(self.commands) do
+        local aliases = {}
+        for _, a in pairs(cmd.Alias) do table.insert(aliases, a:lower()) end
+        
+        if table.find(aliases, alias) then
+            -- Exécution de la commande
+            local success, err = pcall(cmd.Callback, unpack(args))
+            if not success then
+                NotificationLibrary:SendNotification("Erreur", "Erreur d'exécution: " .. err, 3)
+            end
+            return true
+        end
+    end
+    
+    NotificationLibrary:SendNotification("Erreur", "Commande inconnue: " .. alias, 3)
+    return false
+end
+
+-- ====================================================================
+-- 3. FONCTIONS D'INTERFACE (GUI)
+-- ====================================================================
+
+-- Fonction de création d'un élément dans la liste des commandes
+local function createCommandLabel(text, index)
+    local container = Instance.new("Frame")
+    container.BorderSizePixel = 0
+    container.BackgroundTransparency = 1
+    container.Size = UDim2.new(1, 0, 0, 20) -- Réduit la hauteur pour plus de commandes
+    container.Name = "CommandContainer_" .. index
+    
+    local label = Instance.new("TextLabel")
+    label.BorderSizePixel = 0
+    label.TextSize = 16
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    label.FontFace = Font.new("rbxasset://fonts/families/SourceSansPro.json", Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.BackgroundTransparency = 1
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.Text = text
+    label.Parent = container
+
+    return container
+end
+
+-- Fonction pour mettre à jour la liste des commandes (AutocompleteFrame)
+local function updateAutocomplete(searchText)
+    for _, child in pairs(G2L["ScrollingFrame_Auto"]:GetChildren()) do
+        if child:IsA("GuiBase") then child:Destroy() end
+    end
+
+    local matchingCommands = CommandSystem:GetMatchingCommands(searchText)
+    local listHeight = 0
+    local maxItems = 10 
+    
+    for i, cmd in ipairs(matchingCommands) do
+        if i <= maxItems then
+            local aliasText = cmd.Alias[1] or cmd.Title
+            local label = createCommandLabel(aliasText .. ": " .. cmd.Title, i)
+            label.Parent = G2L["ScrollingFrame_Auto"]
+            listHeight = listHeight + label.Size.Y.Offset + G2L["UIListLayout_Auto"].Padding.Offset
+        end
+    end
+    
+    -- Ajuster la taille du cadre d'autocomplétion
+    local targetSizeY = math.min(listHeight, 200) -- Limite la hauteur max à 200 pixels
+    G2L["AutocompleteFrame"].Size = UDim2.new(0, 200, 0, targetSizeY)
+    
+    -- Ajuster la taille du canvas pour le défilement
+    G2L["ScrollingFrame_Auto"].CanvasSize = UDim2.new(0, 0, 0, listHeight)
+end
+
+-- Fonction pour ouvrir et fermer la barre de commande
+local function ToggleCommandBar(open)
+    IsCommandBarOpen = open
+    G2L["CommandFrame_2"].Visible = open
+    G2L["TextBox_7"]:CaptureFocus()
+    
+    if open then
+        -- Initialiser avec toutes les commandes (l'équivalent de "help" ou "info")
+        G2L["TextBox_7"].Text = ""
+        updateAutocomplete("")
+    else
+        G2L["TextBox_7"].Text = ""
+        G2L["TextBox_7"]:ReleaseFocus()
+        G2L["AutocompleteFrame"].Size = UDim2.new(0, 200, 0, 0)
+    end
+end
+
+-- ====================================================================
+-- 4. DÉFINITION DE L'INTERFACE (G2L)
+-- (Code de l'interface graphique fourni dans la réponse précédente)
+-- ====================================================================
+
+local G2L = {}
+
+G2L["DarkAdmin_1"] = Instance.new("ScreenGui", CoreGui)
+G2L["DarkAdmin_1"]["Name"] = "DarkAdmin"
+G2L["DarkAdmin_1"]["ZIndexBehavior"] = Enum.ZIndexBehavior.Sibling
+G2L["DarkAdmin_1"]["ResetOnSpawn"] = false
+
+-- Cadre de la Barre de Commande
+G2L["CommandFrame_2"] = Instance.new("Frame", G2L["DarkAdmin_1"])
+G2L["CommandFrame_2"]["BorderSizePixel"] = 0
+G2L["CommandFrame_2"]["BackgroundColor3"] = Color3.fromRGB(255, 255, 255)
+G2L["CommandFrame_2"]["Size"] = UDim2.new(0, 200, 0, 40) -- Taille ajustée
+G2L["CommandFrame_2"]["Position"] = UDim2.new(0, 230, 0, -46)
+G2L["CommandFrame_2"]["Name"] = "CommandFrame"
+G2L["CommandFrame_2"]["BackgroundTransparency"] = 0.1
+G2L["CommandFrame_2"]["Visible"] = false
+G2L["CommandFrame_2"]["ClipsDescendants"] = false
+
+G2L["UICorner_3"] = Instance.new("UICorner", G2L["CommandFrame_2"])
+G2L["UICorner_3"]["CornerRadius"] = UDim.new(0, 20)
+
+G2L["UIGradient_4"] = Instance.new("UIGradient", G2L["CommandFrame_2"])
+G2L["UIGradient_4"]["Color"] = ColorSequence.new{
+	ColorSequenceKeypoint.new(0.000, Color3.fromRGB(5, 5, 5)),
+	ColorSequenceKeypoint.new(1.000, Color3.fromRGB(40, 40, 40))
+}
+
+-- Cadre pour le TextBox (dans CommandFrame_2)
+G2L["Frame_5"] = Instance.new("Frame", G2L["CommandFrame_2"])
+G2L["Frame_5"]["BorderSizePixel"] = 0
+G2L["Frame_5"]["BackgroundColor3"] = Color3.fromRGB(255, 255, 255)
+G2L["Frame_5"]["Size"] = UDim2.new(0, 190, 0, 28)
+G2L["Frame_5"]["Position"] = UDim2.new(0, 5, 0, 6)
+G2L["Frame_5"]["BackgroundTransparency"] = 1
+
+-- Zone de saisie du Texte (TextBox)
+G2L["TextBox_7"] = Instance.new("TextBox", G2L["Frame_5"])
+G2L["TextBox_7"]["PlaceholderColor3"] = Color3.fromRGB(156, 156, 156)
+G2L["TextBox_7"]["BorderSizePixel"] = 0
+G2L["TextBox_7"]["TextSize"] = 20
+G2L["TextBox_7"]["TextColor3"] = Color3.fromRGB(211, 211, 211)
+G2L["TextBox_7"]["BackgroundColor3"] = Color3.fromRGB(142, 142, 142)
+G2L["TextBox_7"]["FontFace"] = Font.new("rbxasset://fonts/families/SourceSansPro.json", Enum.FontWeight.SemiBold, Enum.FontStyle.Normal)
+G2L["TextBox_7"]["PlaceholderText"] = "Command Bar :"
+G2L["TextBox_7"]["Size"] = UDim2.new(1, 0, 1, 0) -- Remplir le parent
+G2L["TextBox_7"]["Text"] = ""
+G2L["TextBox_7"]["BackgroundTransparency"] = 1
+G2L["TextBox_7"]["TextXAlignment"] = Enum.TextXAlignment.Left -- Changé à Left
+
+G2L["UICorner_8"] = Instance.new("UICorner", G2L["TextBox_7"])
+G2L["UICorner_8"]["CornerRadius"] = UDim.new(0, 14) -- Ajusté
+
+-- Cadre d'Autocomplétion (Liste des Commandes)
+G2L["AutocompleteFrame"] = Instance.new("Frame", G2L["CommandFrame_2"])
+G2L["AutocompleteFrame"]["BorderSizePixel"] = 0
+G2L["AutocompleteFrame"]["BackgroundColor3"] = Color3.fromRGB(20, 20, 20)
+G2L["AutocompleteFrame"]["Size"] = UDim2.new(0, 200, 0, 0)
+G2L["AutocompleteFrame"]["Position"] = UDim2.new(0, 0, 1, 6)
+G2L["AutocompleteFrame"]["BackgroundTransparency"] = 0.2
+G2L["AutocompleteFrame"]["Visible"] = true
+G2L["AutocompleteFrame"]["ClipsDescendants"] = false
+G2L["AutocompleteFrame"]["ZIndex"] = 10
+
+G2L["UICorner_Auto"] = Instance.new("UICorner", G2L["AutocompleteFrame"])
+
+-- Cadre de défilement pour contenir les commandes
+G2L["ScrollingFrame_Auto"] = Instance.new("ScrollingFrame", G2L["AutocompleteFrame"])
+G2L["ScrollingFrame_Auto"]["ScrollingDirection"] = Enum.ScrollingDirection.Y
+G2L["ScrollingFrame_Auto"]["BorderSizePixel"] = 0
+G2L["ScrollingFrame_Auto"]["CanvasSize"] = UDim2.new(0, 0, 0, 0)
+G2L["ScrollingFrame_Auto"]["BackgroundColor3"] = Color3.fromRGB(255, 255, 255)
+G2L["ScrollingFrame_Auto"]["ScrollBarImageTransparency"] = 0.3
+G2L["ScrollingFrame_Auto"]["AutomaticCanvasSize"] = Enum.AutomaticSize.Y
+G2L["ScrollingFrame_Auto"]["Size"] = UDim2.new(1, -8, 1, -8)
+G2L["ScrollingFrame_Auto"]["ScrollBarImageColor3"] = Color3.fromRGB(21, 21, 21)
+G2L["ScrollingFrame_Auto"]["Position"] = UDim2.new(0, 4, 0, 4)
+G2L["ScrollingFrame_Auto"]["ScrollBarThickness"] = 2
+G2L["ScrollingFrame_Auto"]["BackgroundTransparency"] = 1
+
+G2L["UIListLayout_Auto"] = Instance.new("UIListLayout", G2L["ScrollingFrame_Auto"])
+G2L["UIListLayout_Auto"]["Padding"] = UDim.new(0, 4)
+
+G2L["UIPadding_Auto"] = Instance.new("UIPadding", G2L["ScrollingFrame_Auto"])
+G2L["UIPadding_Auto"]["PaddingLeft"] = UDim.new(0, 4)
+G2L["UIPadding_Auto"]["PaddingTop"] = UDim.new(0, 4)
+G2L["UIPadding_Auto"]["PaddingBottom"] = UDim.new(0, 2)
+
+-- Centrer initialement la barre de commande (pour l'exemple)
+local function centerCommandBar()
+    local screen_width = game.Workspace.CurrentCamera.ViewportSize.X
+    local bar_width = 200 -- Taille fixe
+    local x_pos = (screen_width / 2) - (bar_width / 2)
+    G2L["CommandFrame_2"].Position = UDim2.new(0, x_pos, 0.9, 0) -- En bas au centre
+end
+
+-- Exécuter la fonction de centrage au démarrage et lors du redimensionnement
+centerCommandBar()
+game.Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(centerCommandBar)
+
+
+-- ====================================================================
+-- 5. COMMANDES EXEMPLES (inclut 'info' et 'help')
+-- ====================================================================
+
+-- Commande 'info' / 'help' (utilise l'autocomplete pour la liste)
+CommandSystem:AddCmd({
+    Title = "Affiche la liste des commandes",
+    Alias = {"help", "info"},
+    Args = false,
+    Callback = function()
+        -- L'autocomplete se charge d'afficher toutes les commandes
+        if not IsCommandBarOpen then
+             ToggleCommandBar(true)
+        end
+        G2L["TextBox_7"].Text = ""
+        updateAutocomplete("")
+    end
+})
+
+-- Commande de base: Heal
+CommandSystem:AddCmd({
+    Title = "Restaure la vie du joueur",
+    Alias = {"heal"},
+    Args = true,
+    Callback = function(targetName)
+        local target = Players:FindFirstChild(targetName) or (targetName:lower() == "me" and Player)
+        
+        if target and target.Character and target.Character:FindFirstChildOfClass('Humanoid') then
+            target.Character.Humanoid.Health = target.Character.Humanoid.MaxHealth
+            NotificationLibrary:SendNotification("Succès", "Vous avez soigné " .. target.Name, 3)
+        else
+            NotificationLibrary:SendNotification("Erreur", "Joueur '" .. targetName .. "' introuvable ou mort.", 3)
+        end
+    end
+})
+
+-- Commande de base: Teleport
+CommandSystem:AddCmd({
+    Title = "Téléporte à un joueur",
+    Alias = {"tp", "teleport"},
+    Args = true,
+    Callback = function(targetName)
+        local target = Players:FindFirstChild(targetName)
+        
+        if target and target.Character and Player.Character then
+            local rootPart = target.Character:FindFirstChild("HumanoidRootPart")
+            if rootPart then
+                Player.Character:FindFirstChild("HumanoidRootPart").CFrame = rootPart.CFrame * CFrame.new(0, 5, 0)
+                NotificationLibrary:SendNotification("Succès", "Téléporté à " .. target.Name, 3)
+            end
+        else
+            NotificationLibrary:SendNotification("Erreur", "Joueur '" .. targetName .. "' introuvable.", 3)
+        end
+    end
+})
+
+-- ====================================================================
+-- 6. GESTION DES ÉVÉNEMENTS (Input)
+-- ====================================================================
+
+-- Connexion pour les saisies de l'utilisateur
+G2L["TextBox_7"].FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local commandText = G2L["TextBox_7"].Text:sub(#COMMAND_PREFIX + 1) -- Enlève le préfixe
+        if commandText:len() > 0 then
+            CommandSystem:ExecuteCommand(commandText)
+        end
+        ToggleCommandBar(false)
+    end
+end)
+
+-- Mise à jour de l'autocomplétion pendant la saisie
+G2L["TextBox_7"]:GetPropertyChangedSignal("Text"):Connect(function()
+    local text = G2L["TextBox_7"].Text
+    -- La logique commence seulement après le préfixe de commande
+    if text:sub(1, #COMMAND_PREFIX) == COMMAND_PREFIX then
+        local searchText = text:sub(#COMMAND_PREFIX + 1)
+        updateAutocomplete(searchText)
+    end
+end)
+
+-- Gestion de la touche pour ouvrir/fermer la barre de commande (souvent '/')
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    -- Si une boîte de dialogue ou de chat est ouverte, ignorer l'entrée
+    if gameProcessedEvent then return end
+
+    if input.KeyCode == Enum.KeyCode.Semicolon then -- Généralement la touche '/' sur clavier AZERTY
+        if not IsCommandBarOpen then
+            ToggleCommandBar(true)
+            G2L["TextBox_7"].Text = COMMAND_PREFIX -- Préfixe par défaut
+            
+            -- Déplacer le curseur après le préfixe
+            G2L["TextBox_7"].CursorPosition = #COMMAND_PREFIX + 1 
+            updateAutocomplete("") -- Afficher la liste complète ('help')
+        else
+            ToggleCommandBar(false)
+        end
+    elseif input.KeyCode == Enum.KeyCode.Escape and IsCommandBarOpen then
+        ToggleCommandBar(false)
+    end
+end)
+
+NotificationLibrary:SendNotification("DarkAdmin", "Script Admin chargé. Appuyez sur ';' (ou /) pour ouvrir.", 5)
