@@ -1,6 +1,6 @@
 --[[
 	User Interface Library
-	Made by Late
+	Made by Late (Modified for Windows 11 Style)
 ]]
 --// Connections
 local GetService = game.GetService
@@ -12,29 +12,36 @@ if (not game:IsLoaded()) then
 	local Loaded = game.Loaded
 	Loaded.Wait(Loaded);
 end
+
 --// Important 
 local Setup = {
 	Keybind = Enum.KeyCode.LeftControl,
-	Transparency = 0.2,
+	Transparency = 0.1, -- Augmentation de la transparence par défaut
 	ThemeMode = "Dark",
 	Size = nil,
 }
-local Theme = { --// (Dark Theme)
+
+-- Thème modifié pour un style plus moderne (similaire à Windows 11)
+local Theme = { --// (Dark Theme - Modernisé)
 	--// Frames:
-	Primary = Color3.fromRGB(30, 30, 30),
-	Secondary = Color3.fromRGB(35, 35, 35),
-	Component = Color3.fromRGB(40, 40, 40),
-	Interactables = Color3.fromRGB(45, 45, 45),
+	Primary = Color3.fromRGB(32, 32, 32), -- Gris plus doux
+	Secondary = Color3.fromRGB(40, 40, 40), -- Gris plus doux
+	Component = Color3.fromRGB(45, 45, 45), -- Gris plus doux
+	Interactables = Color3.fromRGB(50, 50, 50), -- Gris plus doux
 	--// Text:
-	Tab = Color3.fromRGB(200, 200, 200),
-	Title = Color3.fromRGB(240,240,240),
-	Description = Color3.fromRGB(200,200,200),
+	Tab = Color3.fromRGB(220, 220, 220), -- Légèrement plus clair
+	Title = Color3.fromRGB(250, 250, 250), -- Presque blanc
+	Description = Color3.fromRGB(180, 180, 180), -- Légèrement plus clair
 	--// Outlines:
 	Shadow = Color3.fromRGB(0, 0, 0),
-	Outline = Color3.fromRGB(40, 40, 40),
+	Outline = Color3.fromRGB(60, 60, 60), -- Légèrement plus clair
 	--// Image:
-	Icon = Color3.fromRGB(220, 220, 220),
+	Icon = Color3.fromRGB(240, 240, 240), -- Plus clair
+	--// Accent (similaire à Windows 11)
+	Accent = Color3.fromRGB(0, 120, 212), -- Bleu Windows 11
+	AccentHover = Color3.fromRGB(0, 90, 180), -- Bleu foncé pour le survol
 }
+
 --// Services & Functions
 local Type, Blur = nil
 local LocalPlayer = GetService(game, "Players").LocalPlayer;
@@ -48,10 +55,8 @@ local Player = {
 	Mouse = LocalPlayer:GetMouse();
 	GUI = LocalPlayer.PlayerGui;
 }
-
 -- Détection de l'appareil mobile
 local IsMobile = Services.Input.TouchEnabled -- Vérifie si le toucher est activé
-
 local Tween = function(Object : Instance, Speed : number, Properties : {},  Info : { EasingStyle: Enum?, EasingDirection: Enum? })
 	local Style, Direction
 	if Info then
@@ -170,6 +175,14 @@ Resizeable = function(Tab, Minimum, Maximum)
 		end)
 	end)
 end
+
+-- Fonction pour ajouter des coins arrondis
+local function AddRoundedCorners(Object, Radius)
+	local UICorner = Instance.new("UICorner")
+	UICorner.CornerRadius = UDim.new(0, Radius or 8) -- 8px est un bon point de départ pour Windows 11
+	UICorner.Parent = Object
+end
+
 --// Setup [UI]
 if (identifyexecutor) then
 	Screen = Services.Insert:LoadLocalAsset("rbxassetid://18490507748");
@@ -184,6 +197,7 @@ xpcall(function()
 end, function() 
 	Screen.Parent = Player.GUI
 end)
+
 --// Tables for Data
 local Animations = {}
 local Blurs = {}
@@ -193,6 +207,7 @@ local StoredInfo = {
 	["Sections"] = {};
 	["Tabs"] = {}
 };
+
 --// Animations [Window]
 function Animations:Open(Window: CanvasGroup, Transparency: number, UseCurrentSize: boolean)
 	local Original = (UseCurrentSize and Window.Size) or Setup.Size
@@ -242,6 +257,7 @@ function Animations:Component(Component: any, Custom: boolean)
 		end
 	end)
 end
+
 --// Library [Window]
 function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparency: number, MinimizeKeybind: Enum.KeyCode?, Blurring: boolean, Theme: string })
 	local Window = Clone(Screen:WaitForChild("Main"));
@@ -259,11 +275,11 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Examples[Example.Name] = Example
 		end
 	end
+
 	--// UI Blur & More
 	Drag(Window);
 	Resizeable(Window, Vector2.new(411, 271), Vector2.new(9e9, 9e9));
-	Setup.Transparency = Settings.Transparency or 0
-
+	Setup.Transparency = Settings.Transparency or Setup.Transparency -- Utilise la transparence par défaut si non spécifiée
 	-- Définir Setup.Size avec une hauteur réduite pour mobile si non spécifiée
 	if Settings.Size then
 		Setup.Size = Settings.Size
@@ -274,7 +290,6 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Setup.Size = UDim2.new(0, 500, 0, 600) -- Hauteur par défaut pour PC
 		end
 	end
-
 	Setup.ThemeMode = Settings.Theme or "Dark"
 	if Settings.Blurring then
 		Blurs[Settings.Title] = Blur.new(Window, 5)
@@ -283,6 +298,10 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	if Settings.MinimizeKeybind then
 		Setup.Keybind = Settings.MinimizeKeybind
 	end
+
+	-- Appliquer les coins arrondis à la fenêtre principale
+	AddRoundedCorners(Window, 12) -- Rayon plus important pour l'effet Windows 11
+
 	--// Animate
 	local Close = function()
 		if Opened then
@@ -304,6 +323,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		if Button:IsA("TextButton") then
 			local Name = Button.Name
 			Animations:Component(Button, true)
+			-- Appliquer les coins arrondis aux boutons de la barre de titre
+			AddRoundedCorners(Button, 6)
 			Connect(Button.MouseButton1Click, function() 
 				if Name == "Close" then
 					Close()
@@ -328,6 +349,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Close()
 		end
 	end)
+
 	--// Tab Functions
 	function Options:SetTab(Name: string)
 		for Index, Button in next, Tab:GetChildren() do
@@ -343,6 +365,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 					Tween(Button, .25, { BackgroundTransparency = 1, Size = UDim2.new(1, -44, 0, 30) });
 					SetProperty(Opened, { Value = false });
 				end
+			 -- Appliquer les coins arrondis aux boutons d'onglet
+			 AddRoundedCorners(Button, 6)
 			end
 		end
 		for Index, Main in next, Holder:GetChildren() do
@@ -402,11 +426,14 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Name = Settings.Title;
 			Visible = true;
 		});
+		-- Appliquer les coins arrondis au bouton d'onglet
+		AddRoundedCorners(Tab, 6)
 		Tab.MouseButton1Click:Connect(function()
 			Options:SetTab(Tab.Name);
 		end)
 		return Main.ScrollingFrame
 	end
+
 	--// Notifications
 	function Options:Notify(Settings: { Title: string, Description: string, Duration: number }) 
 		local Notification = Clone(Components["Notification"]);
@@ -417,6 +444,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		SetProperty(Notification, {
 			Parent = Screen["Frame"],
 		})
+		-- Appliquer les coins arrondis à la notification
+		AddRoundedCorners(Notification, 8)
 		task.spawn(function() 
 			local Duration = Settings.Duration or 2
 			local Wait = task.wait;
@@ -427,6 +456,7 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Notification:Destroy();
 		end)
 	end
+
 	--// Component Functions
 	function Options:GetLabels(Component)
 		local Labels = Component:FindFirstChild("Labels")
@@ -439,6 +469,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Parent = Settings.Tab,
 			Visible = true,
 		})
+		-- Appliquer les coins arrondis à la section
+		AddRoundedCorners(Section, 4)
 	end
 	function Options:AddButton(Settings: { Title: string, Description: string, Tab: Instance, Callback: any }) 
 		local Button = Clone(Components["Button"]);
@@ -451,7 +483,9 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Name = Settings.Title,
 			Parent = Settings.Tab,
 			Visible = true,
-		})
+		});
+		-- Appliquer les coins arrondis au bouton
+		AddRoundedCorners(Button, 6)
 	end
 	function Options:AddInput(Settings: { Title: string, Description: string, Tab: Instance, Callback: any }) 
 		local Input = Clone(Components["Input"]);
@@ -470,7 +504,11 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Name = Settings.Title,
 			Parent = Settings.Tab,
 			Visible = true,
-		})
+		});
+		-- Appliquer les coins arrondis à l'entrée
+		AddRoundedCorners(Input, 6)
+		-- Appliquer les coins arrondis au champ de texte
+		AddRoundedCorners(TextBox, 4)
 	end
 	function Options:AddToggle(Settings: { Title: string, Description: string, Default: boolean, Tab: Instance, Callback: any }) 
 		local Toggle = Clone(Components["Toggle"]);
@@ -480,7 +518,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		local Circle = Main["Circle"];
 		local Set = function(Value)
 			if Value then
-				Tween(Main,   .2, { BackgroundColor3 = Color3.fromRGB(153, 155, 255) });
+				-- Utilisation de la couleur d'accent Windows 11
+				Tween(Main,   .2, { BackgroundColor3 = Theme.Accent });
 				Tween(Circle, .2, { BackgroundColor3 = Color3.fromRGB(255, 255, 255), Position = UDim2.new(1, -16, 0.5, 0) });
 			else
 				Tween(Main,   .2, { BackgroundColor3 = Theme.Interactables });
@@ -501,7 +540,12 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Name = Settings.Title,
 			Parent = Settings.Tab,
 			Visible = true,
-		})
+		});
+		-- Appliquer les coins arrondis au bouton du toggle
+		AddRoundedCorners(Toggle, 12) -- Pour un style de toggle plus moderne
+		-- Appliquer les coins arrondis au curseur du toggle
+		AddRoundedCorners(Main, 8)
+		AddRoundedCorners(Circle, 6)
 	end
 	function Options:AddKeybind(Settings: { Title: string, Description: string, Tab: Instance, Callback: any }) 
 		local Dropdown = Clone(Components["Keybind"]);
@@ -541,7 +585,9 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Name = Settings.Title,
 			Parent = Settings.Tab,
 			Visible = true,
-		})
+		});
+		-- Appliquer les coins arrondis à la dropdown de keybind
+		AddRoundedCorners(Dropdown, 6)
 	end
 	function Options:AddDropdown(Settings: { Title: string, Description: string, Options: {}, Tab: Instance, Callback: any }) 
 		local Dropdown = Clone(Components["Dropdown"]);
@@ -553,9 +599,13 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Tween(BG, .25, { BackgroundTransparency = 0.6 });
 			SetProperty(Example, { Parent = Window });
 			Animations:Open(Example, 0, true)
+			-- Appliquer les coins arrondis à la fenêtre de dropdown
+			AddRoundedCorners(Example, 8)
 			for Index, Button in next, Buttons:GetChildren() do
 				if Button:IsA("TextButton") then
 					Animations:Component(Button, true)
+					-- Appliquer les coins arrondis aux boutons de la dropdown
+					AddRoundedCorners(Button, 6)
 					Connect(Button.MouseButton1Click, function()
 						Tween(BG, .25, { BackgroundTransparency = 1 });
 						Animations:Close(Example);
@@ -572,6 +622,8 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 				SetProperty(Title, { Text = Index });
 				SetProperty(Button, { Parent = Example.ScrollingFrame, Visible = true });
 				Destroy(Description);
+				-- Appliquer les coins arrondis aux boutons d'options
+				AddRoundedCorners(Button, 6)
 				Connect(Button.MouseButton1Click, function() 
 					local NewValue = not Selected.Value 
 					if NewValue then
@@ -601,7 +653,9 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Name = Settings.Title,
 			Parent = Settings.Tab,
 			Visible = true,
-		})
+		});
+		-- Appliquer les coins arrondis à la dropdown principale
+		AddRoundedCorners(Dropdown, 6)
 	end
 	function Options:AddSlider(Settings: { Title: string, Description: string, MaxValue: number, AllowDecimals: boolean, DecimalAmount: number, Tab: Instance, Callback: any }) 
 		local Slider = Clone(Components["Slider"]);
@@ -657,7 +711,13 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Name = Settings.Title,
 			Parent = Settings.Tab,
 			Visible = true,
-		})
+		});
+		-- Appliquer les coins arrondis à la barre de fond du slider
+		AddRoundedCorners(Slide, 4)
+		-- Appliquer les coins arrondis au cercle du slider
+		AddRoundedCorners(Circle, 8)
+		-- Appliquer les coins arrondis au champ de texte du slider
+		AddRoundedCorners(Amount, 4)
 	end
 	function Options:AddParagraph(Settings: { Title: string, Description: string, Tab: Instance }) 
 		local Paragraph = Clone(Components["Paragraph"]);
@@ -668,7 +728,10 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			Parent = Settings.Tab,
 			Visible = true,
 		})
+		-- Appliquer les coins arrondis au paragraphe
+		AddRoundedCorners(Paragraph, 4)
 	end
+
 	local Themes = {
 		Names = {	
 			["Paragraph"] = function(Label)
@@ -679,16 +742,19 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			["Title"] = function(Label)
 				if Label:IsA("TextLabel") then
 					Label.TextColor3 = Theme.Title
+					Label.Font = Enum.Font.Gotham -- Utilisation d'une police moderne
 				end
 			end,
 			["Description"] = function(Label)
 				if Label:IsA("TextLabel") then
 					Label.TextColor3 = Theme.Description
+					Label.Font = Enum.Font.Gotham -- Utilisation d'une police moderne
 				end
 			end,
 			["Section"] = function(Label)
 				if Label:IsA("TextLabel") then
 					Label.TextColor3 = Theme.Title
+					Label.Font = Enum.Font.GothamBold -- Utilisation d'une police moderne en gras
 				end
 			end,
 			["Options"] = function(Label)
@@ -782,7 +848,11 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 	function Options:SetTheme(Info)
 		Theme = Info or Theme
 		Window.BackgroundColor3 = Theme.Primary
+		-- Appliquer la transparence à la fenêtre principale
+		Window.BackgroundTransparency = Setup.Transparency
 		Holder.BackgroundColor3 = Theme.Secondary
+		-- Appliquer la transparence au conteneur principal
+		Holder.BackgroundTransparency = Setup.Transparency * 0.8 -- Légèrement plus opaque que la fenêtre
 		Window.UIStroke.Color = Theme.Shadow
 		for Index, Descendant in next, Screen:GetDescendants() do
 			local Name, Class =  Themes.Names[Descendant.Name],  Themes.Classes[Descendant.ClassName]
@@ -793,46 +863,10 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 			end
 		end
 	end
-	--// Changing Settings
-	function Options:SetSetting(Setting, Value) --// Available settings - Size, Transparency, Blur, Theme
-		if Setting == "Size" then
-			Window.Size = Value
-			Setup.Size = Value
-		elseif Setting == "Transparency" then
-			Window.GroupTransparency = Value
-			Setup.Transparency = Value
-			for Index, Notification in next, Screen:GetDescendants() do
-				if Notification:IsA("CanvasGroup") and Notification.Name == "Notification" then
-					Notification.GroupTransparency = Value
-				end
-			end
-		elseif Setting == "Blur" then
-			local AlreadyBlurred, Root = Blurs[Settings.Title], nil
-			if AlreadyBlurred then
-				Root = Blurs[Settings.Title]["root"]
-			end
-			if Value then
-				BlurEnabled = true
-				if not AlreadyBlurred or not Root then
-					Blurs[Settings.Title] = Blur.new(Window, 5)
-				elseif Root and not Root.Parent then
-					Root.Parent = workspace.CurrentCamera
-				end
-			elseif not Value and (AlreadyBlurred and Root and Root.Parent) then
-				Root.Parent = nil
-				BlurEnabled = false
-			end
-		elseif Setting == "Theme" and typeof(Value) == "table" then
-			Options:SetTheme(Value)
-		elseif Setting == "Keybind" then
-			Setup.Keybind = Value
-		else
-			warn("Tried to change a setting that doesn't exist or isn't available to change.")
-		end
-	end
+
 	-- Utilisation de Setup.Size qui est maintenant défini dynamiquement
 	SetProperty(Window, { Size = Setup.Size, Visible = true, Parent = Screen });
-	Animations:Open(Window, Settings.Transparency or 0)
+	Animations:Open(Window, Setup.Transparency)
 	return Options
 end
 return Library
