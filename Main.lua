@@ -1,7 +1,3 @@
---[[
-	User Interface Library
-	Made by Late (Modified for Windows 11 Style)
-]]
 --// Connections
 local GetService = game.GetService
 local Connect = game.Loaded.Connect
