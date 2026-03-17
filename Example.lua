@@ -2,7 +2,7 @@
 local UserInputService = game:GetService("UserInputService");
 
 --// Library
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/lxte/lates-lib/main/Main.lua"))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Jfdedit3/Lib/refs/heads/main/Main.lua"))()
 local Window = Library:CreateWindow({
 	Title = "???",
 	Theme = "Dark",
