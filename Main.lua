@@ -216,52 +216,68 @@ local StoredInfo = {
 
 --// Animations [Window]
 function Animations:Open(Window: CanvasGroup, Transparency: number, UseCurrentSize: boolean)
-	local Original = (UseCurrentSize and Window.Size) or Setup.Size
-	local Multiplied = Multiply(Original, 1.1)
-	local Shadow = Window:FindFirstChildOfClass("UIStroke")
-	SetProperty(Shadow, { Transparency = 1 })
-	SetProperty(Window, {
-		Size = Multiplied,
-		GroupTransparency = 1,
-		Visible = true,
-	})
-	Tween(Shadow, .25, { Transparency = 0.5 })
-	Tween(Window, .25, {
-		Size = Original,
-		GroupTransparency = Transparency or 0,
-	})
+    -- Animation d'ouverture modernisée : commence plus petit et utilise une courbe d'overshoot douce.
+    local Original = (UseCurrentSize and Window.Size) or Setup.Size
+    -- Taille de départ légèrement inférieure pour un effet de zoom.
+    local StartSize = Multiply(Original, 0.9)
+    local Shadow = Window:FindFirstChildOfClass("UIStroke")
+    -- Préparer l'état initial
+    SetProperty(Shadow, { Transparency = 1 })
+    SetProperty(Window, {
+        Size = StartSize,
+        GroupTransparency = 1,
+        Visible = true,
+    })
+    -- Définition des styles d'animation pour une transition fluide avec overshoot.
+    local info = {
+        EasingStyle = Enum.EasingStyle.Back,
+        EasingDirection = Enum.EasingDirection.Out
+    }
+    -- Animer l'ombre et l'interface
+    Tween(Shadow, 0.35, { Transparency = 0.5 }, { EasingStyle = Enum.EasingStyle.Quad, EasingDirection = Enum.EasingDirection.Out })
+    Tween(Window, 0.35, {
+        Size = Original,
+        GroupTransparency = Transparency or 0,
+    }, info)
 end
 function Animations:Close(Window: CanvasGroup)
-	local Original = Window.Size
-	local Multiplied = Multiply(Original, 1.1)
-	local Shadow = Window:FindFirstChildOfClass("UIStroke")
-	SetProperty(Window, {
-		Size = Original,
-	})
-	Tween(Shadow, .25, { Transparency = 1 })
-	Tween(Window, .25, {
-		Size = Multiplied,
-		GroupTransparency = 1,
-	})
-	task.wait(.25)
-	Window.Size = Original
-	Window.Visible = false
+    -- Animation de fermeture modernisée : rétrécissement avec une courbe douce et disparition progressive.
+    local Original = Window.Size
+    local EndSize = Multiply(Original, 0.9)
+    local Shadow = Window:FindFirstChildOfClass("UIStroke")
+    -- Animer l'ombre et la fenêtre vers un état plus petit et transparent.
+    local info = {
+        EasingStyle = Enum.EasingStyle.Back,
+        EasingDirection = Enum.EasingDirection.In
+    }
+    Tween(Shadow, 0.3, { Transparency = 1 }, { EasingStyle = Enum.EasingStyle.Quad, EasingDirection = Enum.EasingDirection.In })
+    Tween(Window, 0.3, {
+        Size = EndSize,
+        GroupTransparency = 1,
+    }, info)
+    -- Attendre la fin de l'animation avant de masquer l'interface.
+    task.wait(0.3)
+    Window.Size = Original
+    Window.Visible = false
 end
 function Animations:Component(Component: any, Custom: boolean)	
-	Connect(Component.InputBegan, function() 
-		if Custom then
-			Tween(Component, .25, { Transparency = .85 });
-		else
-			Tween(Component, .25, { BackgroundColor3 = Color(Theme.Component, 5, Setup.ThemeMode) });
-		end
-	end)
-	Connect(Component.InputEnded, function() 
-		if Custom then
-			Tween(Component, .25, { Transparency = 1 });
-		else
-			Tween(Component, .25, { BackgroundColor3 = Theme.Component });
-		end
-	end)
+    -- Animation pour les composants interactifs : changement de couleur plus fluide avec une courbe quadratique.
+    Connect(Component.InputBegan, function() 
+        if Custom then
+            -- Pour les éléments transparents (comme les boutons d'en-tête), réduire la transparence à l'appui.
+            Tween(Component, 0.15, { Transparency = 0.85 }, { EasingStyle = Enum.EasingStyle.Quad, EasingDirection = Enum.EasingDirection.Out });
+        else
+            -- Accentuer légèrement la couleur du composant au survol/press.
+            Tween(Component, 0.15, { BackgroundColor3 = Color(Theme.Component, 10, Setup.ThemeMode) }, { EasingStyle = Enum.EasingStyle.Quad, EasingDirection = Enum.EasingDirection.Out });
+        end
+    end)
+    Connect(Component.InputEnded, function() 
+        if Custom then
+            Tween(Component, 0.15, { Transparency = 1 }, { EasingStyle = Enum.EasingStyle.Quad, EasingDirection = Enum.EasingDirection.Out });
+        else
+            Tween(Component, 0.15, { BackgroundColor3 = Theme.Component }, { EasingStyle = Enum.EasingStyle.Quad, EasingDirection = Enum.EasingDirection.Out });
+        end
+    end)
 end
 
 --// Library [Window]
