@@ -2,15 +2,23 @@
 local UserInputService = game:GetService("UserInputService");
 
 --// Library
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Jfdedit3/Lib/refs/heads/main/Main.lua"))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/lxte/lates-lib/main/Main.lua"))()
 local Window = Library:CreateWindow({
-	Title = "???",
-	Theme = "Dark",
-	
-	Size = UDim2.fromOffset(570, 370),
-	Transparency = 0.2,
-	Blurring = true,
-	MinimizeKeybind = Enum.KeyCode.LeftAlt,
+    Title = "???",
+    -- Sélection du thème. Vous pouvez utiliser "Dark", "Light", "Void" ou fournir un tableau personnalisé.
+    Theme = "Dark",
+    -- Taille par défaut de la fenêtre. La largeur et la hauteur peuvent être ajustées.
+    Size = UDim2.fromOffset(570, 370),
+    -- Ajuster la transparence de l'interface. 0 est totalement opaque, 1 totalement transparent.
+    Transparency = 0.2,
+    -- Activer l'effet de flou. Nécessite les graphismes Roblox réglés à 8+.
+    Blurring = true,
+    -- Touche pour minimiser l'interface.
+    MinimizeKeybind = Enum.KeyCode.LeftAlt,
+    -- Personnalisation de l'accent : choisissez votre propre couleur de surbrillance.
+    AccentColor = Color3.fromRGB(0, 153, 255),
+    -- Personnalisation du rayon des coins arrondis pour l'interface.
+    CornerRadius = 12,
 })
 
 local Themes = {
