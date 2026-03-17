@@ -11,10 +11,12 @@ end
 
 --// Important 
 local Setup = {
-	Keybind = Enum.KeyCode.LeftControl,
-	Transparency = 0.1, -- Augmentation de la transparence par défaut
-	ThemeMode = "Dark",
-	Size = nil,
+    Keybind = Enum.KeyCode.LeftControl,
+    Transparency = 0.1, -- Augmentation de la transparence par défaut
+    ThemeMode = "Dark",
+    Size = nil,
+    -- Rayon par défaut pour les coins arrondis de tous les éléments UI. Peut être remplacé via les paramètres.
+    CornerRadius = 8,
 }
 
 -- Thème modifié pour un style plus moderne (similaire à Windows 11)
@@ -172,11 +174,19 @@ Resizeable = function(Tab, Minimum, Maximum)
 	end)
 end
 
--- Fonction pour ajouter des coins arrondis
+-- Fonction pour ajouter des coins arrondis.
+-- Si aucun rayon n'est spécifié, utilise la valeur définie dans Setup.CornerRadius. Le rayon peut
+-- également être personnalisé pour chaque objet en passant un nombre en second argument.
 local function AddRoundedCorners(Object, Radius)
-	local UICorner = Instance.new("UICorner")
-	UICorner.CornerRadius = UDim.new(0, Radius or 8) -- 8px est un bon point de départ pour Windows 11
-	UICorner.Parent = Object
+    -- Déterminer le rayon à utiliser : celui passé en paramètre, celui défini dans Setup ou 8 par défaut.
+    local corner = Radius
+    if not corner then
+        corner = Setup.CornerRadius or 8
+    end
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, corner)
+    UICorner.Parent = Object
+    return UICorner
 end
 
 --// Setup [UI]
@@ -256,16 +266,49 @@ end
 
 --// Library [Window]
 function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparency: number, MinimizeKeybind: Enum.KeyCode?, Blurring: boolean, Theme: string })
-	local Window = Clone(Screen:WaitForChild("Main"));
-	local Sidebar = Window:FindFirstChild("Sidebar");
-	local Holder = Window:FindFirstChild("Main");
-	local BG = Window:FindFirstChild("BackgroundShadow");
-	local Tab = Sidebar:FindFirstChild("Tab");
-	local Options = {};
-	local Examples = {};
-	local Opened = true;
-	local Maximized = false;
-	local BlurEnabled = false
+    local Window = Clone(Screen:WaitForChild("Main"));
+    local Sidebar = Window:FindFirstChild("Sidebar");
+    local Holder = Window:FindFirstChild("Main");
+    local BG = Window:FindFirstChild("BackgroundShadow");
+    local Tab = Sidebar:FindFirstChild("Tab");
+    local Options = {};
+    local Examples = {};
+    local Opened = true;
+    local Maximized = false;
+    local BlurEnabled = false
+
+    --\\ Traitement des paramètres de personnalisation de l'interface
+    -- Permet d'utiliser un thème personnalisé en passant un tableau dans Settings.Theme.
+    -- Si une couleur d'accent personnalisée est fournie, elle est appliquée au thème actuel.
+    do
+        -- Gérer le thème personnalisé : si Settings.Theme est un tableau, utiliser ses valeurs directement
+        if Settings.Theme then
+            local tType = typeof(Settings.Theme)
+            if tType == "table" then
+                Theme = Settings.Theme
+            elseif tType == "string" then
+                -- Conserver la chaîne dans ThemeMode pour gérer les variations clair/sombre via la fonction Color()
+                Setup.ThemeMode = Settings.Theme
+            end
+        end
+        -- Appliquer une couleur d'accent personnalisée si fournie. AccentHover est généré automatiquement en assombrissant légèrement.
+        if Settings.AccentColor and typeof(Settings.AccentColor) == "Color3" then
+            Theme.Accent = Settings.AccentColor
+            -- Générer une couleur de survol en réduisant légèrement l'intensité RGB
+            local r, g, b = Theme.Accent.R * 255, Theme.Accent.G * 255, Theme.Accent.B * 255
+            local darken = function(channel, amount)
+                local value = channel - amount
+                if value < 0 then value = 0 elseif value > 255 then value = 255 end
+                return value
+            end
+            local dr, dg, db = darken(r, 30), darken(g, 30), darken(b, 30)
+            Theme.AccentHover = Color3.fromRGB(dr, dg, db)
+        end
+        -- Gérer un rayon de bordure personnalisé depuis Settings.CornerRadius
+        if Settings.CornerRadius then
+            Setup.CornerRadius = Settings.CornerRadius
+        end
+    end
 	for Index, Example in next, Window:GetDescendants() do
 		if Example.Name:find("Example") and not Examples[Example.Name] then
 			Examples[Example.Name] = Example
@@ -295,8 +338,12 @@ function Library:CreateWindow(Settings: { Title: string, Size: UDim2, Transparen
 		Setup.Keybind = Settings.MinimizeKeybind
 	end
 
-	-- Appliquer les coins arrondis à la fenêtre principale
-	AddRoundedCorners(Window, 12) -- Rayon plus important pour l'effet Windows 11
+    -- Appliquer les coins arrondis à la fenêtre principale
+    -- Si un rayon personnalisé est défini dans Setup.CornerRadius, il sera utilisé par défaut.
+    AddRoundedCorners(Window, 12) -- Rayon plus important pour l'effet Windows 11
+    -- Arrondir également la barre latérale et le conteneur principal pour une uniformité visuelle
+    AddRoundedCorners(Sidebar)
+    AddRoundedCorners(Holder)
 
 	--// Animate
 	local Close = function()
